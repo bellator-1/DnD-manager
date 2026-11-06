@@ -1,0 +1,42 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+body { @apply bg-ink text-paper; }
+@layer components {
+  .field { @apply bg-ink border border-line rounded px-2 py-1 w-full focus:outline-none focus:border-brass; }
+  .btn { @apply border border-line rounded px-3 py-1 hover:border-brass focus-visible:outline focus-visible:outline-brass; }
+}
+
+/* Stile dell'editor, adattato da Lorekeeper */
+.lore .ProseMirror { outline: none; min-height: 55vh; display: flow-root; line-height: 1.7; }
+.lore .ProseMirror > * + * { margin-top: .8em; }
+.lore h1, .lore h2, .lore h3 { font-family: "Iowan Old Style", Palatino, Georgia, serif; font-weight: 600; line-height: 1.25; }
+.lore h1 { font-size: 1.75em; } .lore h2 { font-size: 1.4em; } .lore h3 { font-size: 1.2em; }
+.lore ul { list-style: disc; padding-left: 1.5em; } .lore ol { list-style: decimal; padding-left: 1.5em; }
+.lore blockquote { border-left: 3px solid theme('colors.brass'); padding-left: 1em; opacity: .75; font-style: italic; }
+.lore a { color: theme('colors.brass'); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.lore hr { border: 0; border-top: 1px solid theme('colors.line'); }
+.lore code { background: theme('colors.ink'); border-radius: 4px; padding: .1em .35em; font-size: .9em; }
+.lore p.is-editor-empty:first-child::before { content: attr(data-placeholder); opacity: .5; float: left; height: 0; pointer-events: none; }
+.lore table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.lore td, .lore th { border: 1px solid theme('colors.line'); padding: .4em .6em; vertical-align: top; }
+.lore th { background: theme('colors.ink'); font-weight: 600; text-align: left; }
+.lore td > p, .lore th > p { margin: 0; }
+.lore .selectedCell { background: rgba(201, 162, 75, .15); }
+.lore ul[data-type="taskList"] { list-style: none; padding-left: .2em; }
+.lore ul[data-type="taskList"] li { display: flex; gap: .55em; align-items: flex-start; }
+.lore ul[data-type="taskList"] li > label { margin-top: .4em; }
+.lore ul[data-type="taskList"] li > div { flex: 1; }
+.sug-box { position: fixed; z-index: 60; min-width: 12rem; padding: 4px; border: 1px solid theme('colors.line'); border-radius: 6px; background: theme('colors.panel'); }
+.sug { padding: 4px 8px; border-radius: 4px; cursor: pointer; } .sug.on { background: theme('colors.line'); }
+
+/* Maniglie di ridimensionamento delle sezioni: visibili sul tema scuro */
+.react-resizable-handle { background-image: none !important; }
+.react-resizable-handle::after { border-color: theme('colors.brass') !important; width: 8px !important; height: 8px !important; }
+.react-grid-item.react-grid-placeholder { background: theme('colors.brass') !important; opacity: .15 !important; }
+
+/* Immagini nelle note (da Lorekeeper) */
+.lore .img-wrap { position: relative; margin: .4em 0; }
+.lore .img-wrap img { display: block; width: 100%; border-radius: 6px; }
+.lore .img-wrap[data-align="center"] { margin-left: auto; margin-right: auto; }
+.lore .img-wrap[data-align="left"] { float: left; margin: .3em 1.3em .6em 0; }
+.lore .img-wrap[data-align="right"] { float: right; margin: .3em 0 .6em 1.3em; }
+.lore .img-wrap.sel img { outline: 2px solid theme('colors.brass'); outline-offset: 2px; }
