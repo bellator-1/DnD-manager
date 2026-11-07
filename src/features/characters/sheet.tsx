@@ -2,7 +2,7 @@ import { Cfg } from '../../core/layouts'
 import { kit } from '../../core/layoutKit'
 import { rowsBlock } from '../../core/Rows'
 import { itemSummary } from '../items/summary'
-import { imagesBlock } from '../shared/Images'
+import { imagesBlock, portraitBlock } from '../shared/Images'
 import { linksBlock } from '../shared/Links'
 import { BlockDef, KindDef, Setter } from '../../core/SheetView'
 import { rollEvent } from '../dice/DiceMenu'
@@ -98,6 +98,7 @@ const blocks: Record<string, BlockDef> = {
   hp: { label: 'Punti ferita', C: HpBlock },
   links: linksBlock,
   images: imagesBlock,
+  portrait: portraitBlock,
   derived: { label: 'Valori calcolati', C: DerivedBlock },
   slots: { label: 'Slot incantesimo', C: SlotsBlock },
   attacks: rowsBlock('Elenco attacchi', 'attacchiLista', [
@@ -117,7 +118,8 @@ const ab = (a: Ability) => blk('ability', { ability: a, save: true, skills: true
 export const CHARACTER_KIND: KindDef = {
   blocks, fields: FIELDS,
   defaults: [
-    grp('Intestazione', 4, [fld('name'), fld('classe'), fld('sottoclasse'), fld('specie'), fld('background'), fld('livello'), fld('pe')], 0, 0, 12),
+    grp('Intestazione', 3, [fld('name'), fld('classe'), fld('sottoclasse'), fld('specie'), fld('background'), fld('livello'), fld('pe')], 0, 0, 9),
+    grp('Ritratto', 1, [blk('portrait')], 9, 0, 3),
     grp('Combattimento', 1, [blk('hp'), sub('Stato', 2, [fld('ca'), fld('velocita'), fld('ispirazione'), fld('esaurimento')]), blk('derived')], 0, 8, 4),
     grp('Caratteristiche e abilità', 3, ABILITIES.map(ab), 4, 8, 8),
     grp('Incantesimi', 1, [fld('incantesimi.car'), blk('slots'), blk('spells')], 0, 40, 4),

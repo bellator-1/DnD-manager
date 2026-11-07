@@ -4,7 +4,7 @@ import { BlockDef, KindDef } from '../../core/SheetView'
 import { ABILITIES, ABILITY_LABEL } from '../characters/model'
 import { AbilityBlock, HpBlock } from '../characters/sheet'
 import { itemSummary } from '../items/summary'
-import { imagesBlock } from '../shared/Images'
+import { imagesBlock, portraitBlock } from '../shared/Images'
 import { linksBlock } from '../shared/Links'
 import { NPC_FIELDS } from './model'
 
@@ -15,6 +15,7 @@ const blocks: Record<string, BlockDef> = {
   hp: { label: 'Punti ferita', C: HpBlock },
   links: linksBlock,
   images: imagesBlock,
+  portrait: portraitBlock,
   actions: rowsBlock('Azioni', 'azioni', [
     { key: 'nome', label: 'Nome', w: '3' }, { key: 'bonus', label: 'Att.', num: true, roll: 'attack', w: '2' },
     { key: 'danni', label: 'Danni', roll: 'dice', w: '3' }, { key: 'tipo', label: 'Tipo', w: '2' }], 'azione', { kind: 'items', noun: 'armi, oggetti o magie', summary: itemSummary }),
@@ -24,7 +25,8 @@ const { fld, blk, sub, grp } = kit('np', NPC_FIELDS)
 export const NPC_KIND: KindDef = {
   blocks, fields: NPC_FIELDS,
   defaults: [
-    grp('Intestazione', 4, ['name', 'tipo', 'creatura', 'taglia', 'allineamento', 'gs', 'ruolo', 'atteggiamento'].map(fld), 0, 0, 12),
+    grp('Intestazione', 3, ['name', 'tipo', 'creatura', 'taglia', 'allineamento', 'gs', 'ruolo', 'atteggiamento'].map(fld), 0, 0, 9),
+    grp('Ritratto', 1, [blk('portrait')], 9, 0, 3),
     grp('Statistiche', 1, [blk('hp'), sub('Stato', 2, [fld('ca'), fld('velocita')])], 0, 8, 4),
     grp('Caratteristiche', 3, ABILITIES.map(a => blk('ability', { ability: a, save: false, skills: false })), 4, 8, 8),
     grp('Azioni', 1, [blk('actions'), fld('reazioni'), fld('azioniLeggendarie')], 0, 24, 6),

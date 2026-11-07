@@ -16,7 +16,7 @@ const TEXT_KEYS = ['creatura', 'allineamento', 'gs', 'ruolo', 'atteggiamento', '
 export const newNpc = (tipo: Npc['tipo']) => ({
   name: tipo === 'PNG' ? 'Nuovo PNG' : tipo === 'Animale' ? 'Nuovo animale' : 'Nuova creatura', tipo, taglia: 'Media', ca: 10,
   abilita: { for: 10, des: 10, cos: 10, int: 10, sag: 10, car: 10 }, tiriSalvezza: {},
-  pf: { max: 1, attuali: 1, temp: 0 }, azioni: [], collegamenti: [], immagini: [], extra: {}, ...Object.fromEntries(TEXT_KEYS.map(k => [k, ''])),
+  pf: { max: 1, attuali: 1, temp: 0 }, azioni: [], collegamenti: [], immagini: [], ritratto: '', extra: {}, ...Object.fromEntries(TEXT_KEYS.map(k => [k, ''])),
 }) as unknown as Omit<Npc, keyof Entity> & { name: string }
 
 // Versione semplificata della scheda del giocatore: niente livelli di classe, abilità, slot…

@@ -2,7 +2,7 @@ import { FC, ReactNode, useEffect, useRef, useState } from 'react'
 import GridLayout, { WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
-import { Cfg, FieldDef, Node, Root, edit, move, nid, useLayoutDoc } from './layouts'
+import { Cfg, FieldDef, Node, Root, edit, move, nid, reorderRoot, useLayoutDoc } from './layouts'
 import { getPath, setPath } from './path'
 
 const Grid = WidthProvider(GridLayout)
@@ -99,15 +99,20 @@ function NodeView({ n, ctx, root }: { n: Node; ctx: Ctx; root?: boolean }) {
   return (
     <div className={`${n.type === 'group' && !root ? 'rounded border border-line p-2' : ''} ${editing ? 'outline-dashed outline-1 outline-brass/40' : ''}`}>
       {(label || editing) && (
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h3 className={`font-display text-brass ${root && editing ? 'drag cursor-move' : ''}`}>{root && editing ? '⠿ ' : ''}{label}</h3>
+        <div className={`mb-1 flex items-center justify-between gap-2 ${root && editing ? 'drag cursor-move' : ''}`}>
+          <h3 className="font-display text-brass">{root && editing ? '⠿ ' : ''}{label}</h3>
           {editing && (
-            <span className="flex shrink-0 gap-1 text-xs">
+            <span className="no-drag flex shrink-0 gap-1 text-xs">
               <button className="btn px-1 py-0" title="Impostazioni" onClick={() => setOpen(open === n.id ? null : n.id)}>⚙</button>
-              {!root && <>
+              {!root ? (<>
                 <button className="btn px-1 py-0" title="Sposta su" onClick={() => mut(r => move(r, n.id, -1))}>↑</button>
                 <button className="btn px-1 py-0" title="Sposta giù" onClick={() => mut(r => move(r, n.id, 1))}>↓</button>
-              </>}
+              </>) : (<>
+                <button className="btn px-1 py-0" title="Porta in cima" onClick={() => mut(r => reorderRoot(r, n.id, 'top'))}>⤒</button>
+                <button className="btn px-1 py-0" title="Su" onClick={() => mut(r => reorderRoot(r, n.id, 'up'))}>↑</button>
+                <button className="btn px-1 py-0" title="Giù" onClick={() => mut(r => reorderRoot(r, n.id, 'down'))}>↓</button>
+                <button className="btn px-1 py-0" title="Porta in fondo" onClick={() => mut(r => reorderRoot(r, n.id, 'bottom'))}>⤓</button>
+              </>)}
               <button className="btn px-1 py-0" title="Elimina" onClick={remove}>✕</button>
             </span>
           )}
@@ -139,6 +144,8 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
   const [roots, setRoots] = useLayoutDoc(layoutKey, kind.defaults)
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
+  const [compact, setCompact] = useState(false) // «Riordina sezioni»: solo i titoli, per spostarle senza scorrere
+  useEffect(() => { if (!editing) setCompact(false) }, [editing])
   // Cronologia delle modifiche al layout (struttura, spostamenti, dimensioni). Le raffiche ravvicinate (es. digitare un titolo) contano come un passo.
   const past = useRef<Root[][]>([])
   const future = useRef<Root[][]>([])
@@ -164,6 +171,13 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
   })
   const ctx: Ctx = { kind, data, set: (p, v) => onChange(setPath(data, p, v)), editing, open, setOpen, mut: f => { snap(); setRoots(f) } }
 
+  const addSection = (top: boolean) => {
+    const id = nid()
+    snap()
+    setRoots(rs => { const s: Root = { id, type: 'group', title: 'Nuova sezione', cols: 1, children: [], x: 0, y: 9999, w: 12, h: 6, auto: true }; return top ? reorderRoot([...rs, s], id, 'top') : [...rs, s] })
+    setOpen(id); setCompact(false)
+  }
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -171,25 +185,40 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
         {editing && <>
           <button className="btn disabled:opacity-40" disabled={!past.current.length} onClick={undo} title="Annulla (Ctrl+Z)">↶ Annulla</button>
           <button className="btn disabled:opacity-40" disabled={!future.current.length} onClick={redo} title="Ripeti (Ctrl+Maiusc+Z)">↷ Ripeti</button>
-          <button className="btn" onClick={() => { snap(); setRoots(rs => [...rs, { id: nid(), type: 'group', title: 'Nuova sezione', cols: 1, children: [], x: 0, y: 9999, w: 4, h: 6, auto: true }]) }}>+ Sezione</button>
+          <button className="btn" onClick={() => addSection(true)}>+ Sezione in cima</button>
+          <button className="btn" onClick={() => addSection(false)}>+ Sezione in fondo</button>
+          <button className={`btn ${compact ? 'border-brass bg-brass text-ink' : ''}`} aria-pressed={compact} title="Mostra solo i titoli per spostare le sezioni senza scorrere la pagina" onClick={() => setCompact(c => !c)}>⇅ Riordina sezioni</button>
           <button className="btn" onClick={() => confirm('Ripristinare il layout di default?') && (snap(), setRoots(kind.defaults))}>Ripristina layout</button>
           <span className="text-xs opacity-60">Trascina il titolo ⠿ per spostare · trascina i bordi per ridimensionare (larghezza fino a 12 colonne)</span>
         </>}
       </div>
-      <Grid layout={roots.map(r => ({ i: r.id, x: r.x, y: r.y, w: r.w, h: r.h, minW: 2 }))} cols={12} rowHeight={ROW} margin={[GAP, GAP]}
-        isDraggable={editing} isResizable={editing} onDragStart={snap} onResizeStart={snap} resizeHandles={['s', 'e', 'w', 'se', 'sw']} draggableHandle=".drag"
+      <Grid layout={roots.map(r => ({ i: r.id, x: r.x, y: r.y, w: r.w, h: compact ? 3 : r.h, minW: 2 }))} cols={12} rowHeight={ROW} margin={[GAP, GAP]}
+        isDraggable={editing} isResizable={editing && !compact} draggableCancel=".no-drag" onDragStart={snap} onResizeStart={snap} resizeHandles={['s', 'e', 'w', 'se', 'sw']} draggableHandle=".drag"
         onResizeStop={(_l, old, item) => { if (old.h !== item.h) setRoots(rs => rs.map(r => (r.id === item.i ? { ...r, auto: false } : r))) }}
         onLayoutChange={l => setRoots(rs => {
           const m = new Map<string, { x: number; y: number; w: number; h: number }>(l.map(i => [i.i, i] as [string, any]))
           let changed = false
           const next = rs.map(r => {
             const i = m.get(r.id)
-            if (!i || (i.x === r.x && i.y === r.y && i.w === r.w && i.h === r.h)) return r
-            changed = true; return { ...r, x: i.x, y: i.y, w: i.w, h: i.h }
+            const h = compact ? r.h : i?.h
+            if (!i || (i.x === r.x && i.y === r.y && i.w === r.w && h === r.h)) return r
+            changed = true; return { ...r, x: i.x, y: i.y, w: i.w, h: h as number }
           })
           return changed ? next : rs
         })}>
-        {roots.map(r => (
+        {roots.map(r => compact ? (
+          <div key={r.id} className="rounded border border-brass bg-panel">
+            <div className="drag flex h-full cursor-move items-center gap-2 px-3">
+              <span aria-hidden>⠿</span>
+              <span className="truncate font-display text-brass">{r.title || '(senza titolo)'}</span>
+              <span className="no-drag ml-auto flex shrink-0 gap-1 text-xs">
+                {([['top', '⤒', 'In cima'], ['up', '↑', 'Su'], ['down', '↓', 'Giù'], ['bottom', '⤓', 'In fondo']] as const).map(([how, sym, t]) => (
+                  <button key={how} className="btn px-1.5 py-0" title={t} aria-label={`${t}: ${r.title ?? ''}`} onClick={() => ctx.mut(rs => reorderRoot(rs, r.id, how))}>{sym}</button>
+                ))}
+              </span>
+            </div>
+          </div>
+        ) : (
           <div key={r.id} className={`rounded border bg-panel ${editing ? 'border-brass' : 'border-line'}`}>
             <FitBox auto={r.auto !== false} h={r.h} onFit={h => setRoots(rs => rs.map(x => (x.id === r.id && x.auto !== false && x.h !== h ? { ...x, h } : x)))}>
               <NodeView n={r} ctx={ctx} root />

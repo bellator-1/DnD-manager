@@ -26,6 +26,10 @@ export function useEntities<T extends Entity>(kind: Kind) {
     const e = { ...init, id: crypto.randomUUID(), schemaVersion: 1, updatedAt: Date.now() } as unknown as T
     await tracked(repo.save(cid, kind, e)); setItems(l => [...l, e]); return e
   }
-  const remove = async (id: string) => { await tracked(repo.remove(cid, kind, id)); setItems(l => l.filter(x => x.id !== id)) }
+  const remove = async (id: string) => {
+    const t = timers.current.get(id)
+    if (t) { window.clearTimeout(t); timers.current.delete(id); endSave() } // un salvataggio in attesa non deve ricreare il file appena eliminato
+    await tracked(repo.remove(cid, kind, id)); setItems(l => l.filter(x => x.id !== id))
+  }
   return { items, update, create, remove, loaded }
 }
