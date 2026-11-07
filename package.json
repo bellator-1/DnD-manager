@@ -2,11 +2,12 @@
   "name": "dnd-manage",
   "private": true,
   "type": "module",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tiptap/core": "^2.10.0",
@@ -33,12 +34,13 @@
   "devDependencies": {
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/react-grid-layout": "^1.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
-    "@types/react-grid-layout": "^1.3.5"
+    "vitest": "^2.1.8"
   }
 }

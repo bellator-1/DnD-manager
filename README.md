@@ -26,6 +26,9 @@ Nelle schede e nelle note le foto grandi vengono ridotte a 1600 px; le mappe res
 - **Importa campagna (JSON)…**: crea sempre una campagna nuova, non sovrascrive mai niente.
 - Dentro ogni sezione, **Esporta** / **Importa JSON…** per una singola scheda.
 
+## Test
+`npm test` esegue i test automatici (dadi, percorsi dei dati, operazioni sull'albero del layout).
+
 ## Scorciatoie
 - Layout e mappe: Ctrl+Z annulla, Ctrl+Maiusc+Z (o Ctrl+Y) ripete.
 - Mappe: Invio chiude una rotta o un confine, Esc annulla.
