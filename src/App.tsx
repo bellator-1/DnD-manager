@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { exportCampaign, importCampaign } from './core/backup'
+import { exportCampaign, importCampaign, scanOrphanImages } from './core/backup'
+import { removeImage } from './core/images'
+import { fmtSize } from './core/orphans'
 import { Campaign, repo } from './core/repo'
-import { SaveIndicator, tracked } from './core/saveStatus'
+import { SaveIndicator, savingNow, tracked } from './core/saveStatus'
 import { usePersisted } from './core/SidePanel'
 import { hasFsApi, pickFolder, store } from './core/storage'
 import { DiceMenu } from './features/dice/DiceMenu'
+import { SearchPalette } from './features/search/SearchPalette'
 
 export function CampaignsPage() {
   const [list, setList] = useState<Campaign[]>([])
@@ -21,6 +24,15 @@ export function CampaignsPage() {
     await tracked(repo.saveCampaigns([...list, { id: crypto.randomUUID(), name: name.trim() }])); setName(''); load()
   }
   const importFile = async (f: File) => { try { await importCampaign(f); load() } catch (e) { alert((e as Error).message) } }
+  const cleanImages = async (c: Campaign) => {
+    if (savingNow()) { alert('Ci sono salvataggi in corso: riprova tra un momento.'); return }
+    try {
+      const { orphans, bytes } = await scanOrphanImages(c.id)
+      if (!orphans.length) { alert('Nessuna immagine inutilizzata.'); return }
+      if (!confirm(`Trovate ${orphans.length} immagini inutilizzate (${fmtSize(bytes)}). Eliminarle definitivamente?\nConsiglio: scarica prima un backup con «Esporta».`)) return
+      for (const n of orphans) await removeImage(c.id, n)
+    } catch (e) { alert(`Pulizia non riuscita: ${(e as Error).message}`) }
+  }
   const close = () => { setDel(null); setTyped('') }
   const confirmDelete = async () => {
     if (!del || typed !== 'CONFERMA') return
@@ -43,6 +55,7 @@ export function CampaignsPage() {
             <li key={c.id} className="flex gap-2">
               <button className="btn w-full text-left" onClick={() => nav(`/c/${c.id}`)}>{c.name}</button>
               <button className="btn shrink-0" title="Scarica un backup di questa campagna (JSON)" onClick={() => exportCampaign(c).catch(e => alert((e as Error).message))}>Esporta</button>
+              <button className="btn shrink-0" title="Elimina le immagini che nessuna scheda o nota usa più" onClick={() => cleanImages(c)}>Pulisci immagini</button>
               <button className="btn shrink-0" title="Elimina la campagna" aria-label={`Elimina ${c.name}`} onClick={() => setDel(c)}>Elimina</button>
             </li>
           ))}
@@ -73,8 +86,8 @@ export function CampaignsPage() {
 // Sezioni raggruppate in menu a tendina: per cambiare i gruppi basta modificare questo elenco.
 const GROUPS: { label: string; tabs: [string, string][] }[] = [
   { label: 'Giocatore', tabs: [['schede', 'Schede'], ['note', 'Note']] },
-  { label: 'Elementi di gioco', tabs: [['oggetti', 'Oggetti e magie'], ['mappe', 'Mappe']] },
-  { label: 'Master', tabs: [['png', 'PNG e creature'], ['master', 'Spazio del master'], ['combattimento', 'Combattimento'], ['sessioni', 'Sessioni']] },
+  { label: 'Elementi di gioco', tabs: [['oggetti', 'Oggetti e magie'], ['mappe', 'Mappe'], ['manuali', 'Manuali']] },
+  { label: 'Master', tabs: [['png', 'PNG e creature'], ['relazioni', 'Relazioni'], ['master', 'Spazio del master'], ['combattimento', 'Combattimento'], ['sessioni', 'Sessioni']] },
 ]
 const TABS = GROUPS.flatMap(g => g.tabs)
 
@@ -112,6 +125,11 @@ export function CampaignLayout() {
   const { cid } = useParams()
   const { pathname } = useLocation()
   const [h, patch] = usePersisted('ui:header', { open: true })
+  const [searchOpen, setSearchOpen] = useState(false)
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(o => !o) } }
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  }, [])
   const [name, setName] = useState('')
   useEffect(() => { repo.campaigns().then(l => setName(l.find(c => c.id === cid)?.name ?? '')) }, [cid])
   const seg = pathname.split('/')[3] ?? ''
@@ -124,6 +142,7 @@ export function CampaignLayout() {
           <SaveIndicator />
           {h.open ? <NavMenu cid={cid ?? ''} seg={seg} /> : <span className="text-sm opacity-70">{current}</span>}
           <div className="ml-auto flex items-center gap-4">
+            <button className="btn" title="Cerca nella campagna (Ctrl+K)" onClick={() => setSearchOpen(true)}>⌕ Cerca</button>
             <DiceMenu />
             <div className="flex items-center gap-3 border-l border-line pl-4">
               <Link to="/" title="Torna alla scelta della campagna" className="rounded border border-line px-3 py-1 text-sm opacity-80 hover:border-brass hover:text-brass">⇦ Cambia campagna</Link>
@@ -132,6 +151,7 @@ export function CampaignLayout() {
           </div>
         </div>
       </header>
+      {searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} />}
       <main className="min-h-0 flex-1 overflow-hidden"><Outlet /></main>
     </div>
   )

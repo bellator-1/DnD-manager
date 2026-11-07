@@ -9,10 +9,10 @@ const Grid = WidthProvider(GridLayout)
 const ROW = 8, GAP = 8 // una riga della griglia = 16 px
 export type Setter = (path: string, v: unknown) => void
 export interface PropDef { key: string; label: string; options?: [string, string][] } // con options = menu, senza = casella
-export interface BlockDef { label: string; C: FC<{ c: any; set: Setter; cfg: Cfg }>; cfg?: Cfg; props?: PropDef[] }
+export interface BlockDef { label: string; C: FC<{ c: any; set: Setter; cfg: Cfg; patch: (f: (d: any) => any) => void }>; cfg?: Cfg; props?: PropDef[] }
 // Un "tipo di scheda" (personaggio, PNG, oggetto…) fornisce solo: blocchi pronti, catalogo dei campi e layout di default.
 export interface KindDef { blocks: Record<string, BlockDef>; fields: FieldDef[]; defaults: Root[] }
-interface Ctx { kind: KindDef; data: any; set: Setter; editing: boolean; open: string | null; setOpen: (id: string | null) => void; mut: (f: (r: Root[]) => Root[]) => void }
+interface Ctx { kind: KindDef; data: any; set: Setter; patch: (f: (d: any) => any) => void; editing: boolean; open: string | null; setOpen: (id: string | null) => void; mut: (f: (r: Root[]) => Root[]) => void }
 
 function Field({ cfg, data, set }: { cfg: Cfg; data: any; set: Setter }) {
   const v = getPath(data, cfg.path)
@@ -92,7 +92,7 @@ function NodeView({ n, ctx, root }: { n: Node; ctx: Ctx; root?: boolean }) {
   )
   else if (n.type === 'field') body = <Field cfg={n.cfg ?? {}} data={ctx.data} set={ctx.set} />
   else if (n.type === 'text') body = <p className="whitespace-pre-wrap text-sm">{n.cfg?.text}</p>
-  else if (def) body = <def.C c={ctx.data} set={ctx.set} cfg={{ ...def.cfg, ...n.cfg, nodeId: n.id }} />
+  else if (def) body = <def.C c={ctx.data} set={ctx.set} cfg={{ ...def.cfg, ...n.cfg, nodeId: n.id }} patch={ctx.patch} />
   else body = <p className="text-xs text-red-400">Blocco sconosciuto: {n.type}</p>
 
   const label = n.type === 'group' ? n.title || '(senza titolo)' : editing ? (def?.label ?? (n.type === 'text' ? 'Testo' : 'Campo')) : ''
@@ -169,7 +169,7 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
     }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   })
-  const ctx: Ctx = { kind, data, set: (p, v) => onChange(setPath(data, p, v)), editing, open, setOpen, mut: f => { snap(); setRoots(f) } }
+  const ctx: Ctx = { kind, data, set: (p, v) => onChange(setPath(data, p, v)), patch: f => onChange(f(data)), editing, open, setOpen, mut: f => { snap(); setRoots(f) } }
 
   const addSection = (top: boolean) => {
     const id = nid()

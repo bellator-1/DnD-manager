@@ -11,6 +11,8 @@ import { NpcsPage } from './features/npcs/NpcsPage'
 import { MasterPage } from './features/master/MasterPage'
 import { CombatPage } from './features/combat/CombatPage'
 import { SessionsPage } from './features/sessions/SessionsPage'
+import { RelationsPage } from './features/relations/RelationsPage'
+import { ManualsPage } from './features/manuals/ManualsPage'
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode><BrowserRouter><Routes>
@@ -25,6 +27,8 @@ createRoot(document.getElementById('root')!).render(
       <Route path="master" element={<MasterPage />} />
       <Route path="combattimento" element={<CombatPage />} />
       <Route path="sessioni" element={<SessionsPage />} />
+      <Route path="relazioni" element={<RelationsPage />} />
+      <Route path="manuali" element={<ManualsPage />} />
     </Route>
   </Routes></BrowserRouter></React.StrictMode>
 )

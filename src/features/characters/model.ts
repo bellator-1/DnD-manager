@@ -56,7 +56,7 @@ export const newCharacter = (name: string) => ({
   incantesimi: { car: '' },
   slot: Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => [String(l), { max: 0, usati: 0 }])),
   monete: { mr: 0, ma: 0, me: 0, mo: 0, mp: 0 },
-  attacchiLista: [], incantesimiLista: [], inventarioLista: [], collegamenti: [], immagini: [], ritratto: '',
+  attacchiLista: [], incantesimiLista: [], inventarioLista: [], collegamenti: [], immagini: [], ritratto: '', condizioni: [], relazioni: [],
   extra: {}, ...Object.fromEntries(TEXTS.map(([k]) => [k, ''])),
 }) as unknown as Omit<Character, keyof Entity> & { name: string }
 

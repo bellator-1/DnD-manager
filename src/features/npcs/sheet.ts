@@ -5,6 +5,7 @@ import { ABILITIES, ABILITY_LABEL } from '../characters/model'
 import { AbilityBlock, HpBlock } from '../characters/sheet'
 import { itemSummary } from '../items/summary'
 import { imagesBlock, portraitBlock } from '../shared/Images'
+import { relationsBlock } from '../shared/Relations'
 import { linksBlock } from '../shared/Links'
 import { NPC_FIELDS } from './model'
 
@@ -14,6 +15,7 @@ const blocks: Record<string, BlockDef> = {
     props: [{ key: 'ability', label: 'Caratteristica', options: ABILITIES.map(a => [a, ABILITY_LABEL[a]] as [string, string]) }] },
   hp: { label: 'Punti ferita', C: HpBlock },
   links: linksBlock,
+  relations: relationsBlock,
   images: imagesBlock,
   portrait: portraitBlock,
   actions: rowsBlock('Azioni', 'azioni', [
@@ -32,6 +34,7 @@ export const NPC_KIND: KindDef = {
     grp('Azioni', 1, [blk('actions'), fld('reazioni'), fld('azioniLeggendarie')], 0, 24, 6),
     grp('Tratti e difese', 1, ['tratti', 'resistenze', 'immunita', 'vulnerabilita', 'sensi', 'linguaggi', 'abilitaTesto', 'tiriSalvezzaTesto'].map(fld), 6, 24, 6),
     grp('Descrizione e note', 2, [fld('descrizione'), fld('note')], 0, 50, 12),
+    grp('Relazioni', 1, [blk('relations')], 0, 78, 12),
     grp('Collegamenti', 1, [blk('links')], 0, 80, 12),
     grp('Immagini', 1, [blk('images')], 0, 90, 12),
   ],

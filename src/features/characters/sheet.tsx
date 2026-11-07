@@ -3,6 +3,8 @@ import { kit } from '../../core/layoutKit'
 import { rowsBlock } from '../../core/Rows'
 import { itemSummary } from '../items/summary'
 import { imagesBlock, portraitBlock } from '../shared/Images'
+import { relationsBlock } from '../shared/Relations'
+import { playBlocks } from './play'
 import { linksBlock } from '../shared/Links'
 import { BlockDef, KindDef, Setter } from '../../core/SheetView'
 import { rollEvent } from '../dice/DiceMenu'
@@ -92,6 +94,8 @@ const SlotsBlock = ({ c, set }: P) => (
 
 const abOpts = ABILITIES.map(a => [a, ABILITY_LABEL[a]] as [string, string])
 const blocks: Record<string, BlockDef> = {
+  ...playBlocks,
+  relations: relationsBlock,
   ability: { label: 'Caratteristica con abilità', C: AbilityBlock, cfg: { ability: 'for', save: true, skills: true },
     props: [{ key: 'ability', label: 'Caratteristica', options: abOpts }, { key: 'save', label: 'Tiro salvezza' }, { key: 'skills', label: 'Abilità collegate' }] },
   skills: { label: 'Elenco abilità', C: SkillsBlock, cfg: { ability: '' }, props: [{ key: 'ability', label: 'Mostra', options: [['', 'Tutte'], ...abOpts] }] },
@@ -127,7 +131,24 @@ export const CHARACTER_KIND: KindDef = {
     grp('Privilegi, tratti e talenti', 1, [fld('privilegiClasse'), fld('trattiSpecie'), fld('talenti')], 8, 60, 4),
     grp('Addestramenti e linguaggi', 1, [fld('armature'), fld('armi'), fld('strumenti'), fld('lingue')], 0, 80, 4),
     grp('Collegamenti', 1, [blk('links')], 0, 110, 12),
+    grp('Relazioni', 1, [blk('relations')], 0, 118, 12),
     grp('Immagini', 1, [blk('images')], 0, 125, 12),
     grp('Personaggio', 2, [fld('aspetto'), fld('personalita'), fld('ideali'), fld('legami'), fld('difetti'), fld('storia')], 4, 90, 8),
+  ],
+}
+
+// Vista «modalità gioco»: stessi dati della scheda completa, altro layout (azioni rapide per PF, riposi, condizioni). Anche questo layout si personalizza.
+const pk = kit('cp', FIELDS)
+const pab = (a: Ability) => pk.blk('ability', { ability: a, save: true, skills: true })
+export const CHARACTER_PLAY_KIND: KindDef = {
+  blocks, fields: FIELDS,
+  defaults: [
+    pk.grp('Personaggio', 3, [pk.fld('name'), pk.fld('classe'), pk.fld('livello')], 0, 0, 12),
+    pk.grp('Salute', 1, [pk.blk('playhp'), pk.blk('conditions')], 0, 6, 4),
+    pk.grp('Combattimento', 1, [pk.blk('derived'), pk.sub('Stato', 2, [pk.fld('ca'), pk.fld('velocita'), pk.fld('ispirazione'), pk.fld('esaurimento')]), pk.blk('attacks')], 4, 6, 5),
+    pk.grp('Riposi', 1, [pk.blk('rest')], 9, 6, 3),
+    pk.grp('Caratteristiche e abilità', 3, ABILITIES.map(pab), 0, 30, 12),
+    pk.grp('Incantesimi', 1, [pk.fld('incantesimi.car'), pk.blk('slots'), pk.blk('spells')], 0, 60, 6),
+    pk.grp('Inventario', 1, [pk.blk('inventory'), pk.sub('Monete', 3, ['mr', 'ma', 'me', 'mo', 'mp'].map(m => pk.fld('monete.' + m)))], 6, 60, 6),
   ],
 }

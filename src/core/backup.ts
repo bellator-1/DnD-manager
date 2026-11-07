@@ -1,6 +1,7 @@
 import { tracked } from './saveStatus'
 import { Campaign, repo } from './repo'
 import { saveImage } from './images'
+import { unusedImages } from './orphans'
 import { store } from './storage'
 
 // Backup: una campagna = un solo file JSON con tutti i suoi file (schede, note, oggetti, PNG, mappe, sessioni, combattimento, layout).
@@ -37,6 +38,7 @@ export async function exportCampaign(c: Campaign) {
   const binary: string[] = []
   for (const p of await store().listAll(c.id)) {
     const rel = p.slice(c.id.length + 1)
+    if (rel.startsWith('manual-files/')) continue // i PDF dei manuali (e il loro testo indicizzato) restano sul tuo computer: sono tuoi e pesanti, non vanno nei backup
     if (isBin(rel)) { const b = await store().readBlob(p); if (b) { files[rel] = await toDataUrl(b); binary.push(rel) } }
     else { const t = await store().read(p); if (t !== null) files[rel] = t }
   }
@@ -62,4 +64,21 @@ export async function importCampaign(file: File): Promise<Campaign> {
     await repo.saveCampaigns([...list, c])
   })()) } catch (e) { await store().removeDir(id).catch(() => {}); throw e } // niente cartelle a metà se l'importazione fallisce
   return c
+}
+
+// Immagini in images/ che non compaiono in nessun file di testo della campagna (schede, note, mappe, sessioni…). Non elimina niente: restituisce l'elenco.
+export async function scanOrphanImages(cid: string) {
+  const prefix = `${cid}/images/`
+  const all = await store().listAll(cid)
+  const names = all.filter(p => p.startsWith(prefix)).map(p => p.slice(prefix.length))
+  const texts: string[] = []
+  for (const p of all) {
+    if (p.startsWith(prefix) || p.startsWith(`${cid}/manual-files/`) || p.endsWith('.img')) continue
+    const t = await store().read(p)
+    if (t) texts.push(t)
+  }
+  const orphans = unusedImages(names, texts)
+  let bytes = 0
+  for (const n of orphans) bytes += (await store().readBlob(prefix + n))?.size ?? 0
+  return { orphans, bytes }
 }

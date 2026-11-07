@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { CONDITIONS } from '../../core/conditions'
 import { Kind } from '../../core/repo'
 import { useDoc } from '../../core/useDoc'
 import { useEntities } from '../../core/useEntities'
 import { roll } from '../dice/roll'
 
-const CONDITIONS = ['Accecato', 'Affascinato', 'Afferrato', 'Assordato', 'Avvelenato', 'Esaurimento', 'Incapacitato', 'Invisibile', 'Paralizzato', 'Pietrificato', 'Privo di sensi', 'Prono', 'Spaventato', 'Stordito', 'Trattenuto']
 interface Fighter { id: string; name: string; init: number; mod: number; pf: number; max: number; ca: number; cond: string[]; ref?: { kind: Kind; id: string } }
 interface Combat { round: number; active: string | null; fighters: Fighter[] }
 const EMPTY: Combat = { round: 1, active: null, fighters: [] }

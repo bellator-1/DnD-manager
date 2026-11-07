@@ -1,6 +1,6 @@
 import { store } from './storage'
 
-export type Kind = 'characters' | 'npcs' | 'items' | 'notes' | 'maps' | 'master' | 'sessions'
+export type Kind = 'characters' | 'npcs' | 'items' | 'notes' | 'maps' | 'master' | 'sessions' | 'manuals'
 export interface Entity { id: string; name: string; schemaVersion: number; updatedAt: number }
 export interface Campaign { id: string; name: string }
 

@@ -7,10 +7,10 @@ import type { BlockDef, Setter } from '../../core/SheetView'
 // Collegamenti tra qualsiasi coppia di elementi. Una lista vive in un percorso dei dati: «collegamenti» (blocco classico, con «Collegato da»)
 // oppure «liste.<id del blocco>» (elenchi indipendenti, usati nello spazio del master).
 export interface Link { kind: Kind; id: string }
-const KINDS: Kind[] = ['characters', 'npcs', 'items', 'maps', 'notes', 'sessions']
-const ROUTE: Record<string, string> = { characters: 'schede', npcs: 'png', items: 'oggetti', maps: 'mappe', notes: 'note', sessions: 'sessioni' }
-const GROUPS: [string, string][] = [['characters', 'Personaggi'], ['npcs', 'PNG e creature'], ['items', 'Oggetti'], ['spells', 'Magie'], ['maps', 'Mappe'], ['notes', 'Note'], ['sessions', 'Sessioni']]
-const SHORT: Record<string, string> = { characters: 'Scheda', npcs: 'PNG', items: 'Oggetto', spells: 'Magia', maps: 'Mappa', notes: 'Nota', sessions: 'Sessione' }
+const KINDS: Kind[] = ['characters', 'npcs', 'items', 'maps', 'notes', 'sessions', 'manuals']
+const ROUTE: Record<string, string> = { characters: 'schede', npcs: 'png', items: 'oggetti', maps: 'mappe', notes: 'note', sessions: 'sessioni', manuals: 'manuali' }
+const GROUPS: [string, string][] = [['characters', 'Personaggi'], ['npcs', 'PNG e creature'], ['items', 'Oggetti'], ['spells', 'Magie'], ['maps', 'Mappe'], ['notes', 'Note'], ['sessions', 'Sessioni'], ['manuals', 'Manuali']]
+const SHORT: Record<string, string> = { characters: 'Scheda', npcs: 'PNG', items: 'Oggetto', spells: 'Magia', maps: 'Mappa', notes: 'Nota', sessions: 'Sessione', manuals: 'Manuale' }
 interface T { kind: Kind; id: string; name: string; group: string; links: Link[]; meta: string }
 
 const metaOf = (k: Kind, e: any) =>

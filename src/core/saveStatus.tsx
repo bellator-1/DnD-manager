@@ -6,6 +6,7 @@ let snap: { pending: number; error: string | null; last: number } = { pending, e
 const subs = new Set<() => void>()
 const emit = () => { snap = { pending, error, last }; subs.forEach(f => f()) }
 
+export const savingNow = () => pending > 0
 export const beginSave = () => { pending++; emit() }
 export const endSave = (err?: unknown) => {
   pending = Math.max(0, pending - 1)
