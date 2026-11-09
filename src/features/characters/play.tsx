@@ -46,7 +46,7 @@ const PlayHp = ({ c, set, patch }: P) => {
         <input className="field w-16 px-1 text-center" type="number" min={1} value={amount} aria-label="Quantità" onChange={e => setAmount(Math.max(1, num(e.target.value)))} />
         <button className="btn grow" onClick={() => hit(amount)}>+ Cure</button>
       </div>
-      {pf.attuali === 0 && <div className="space-y-1 rounded border border-line p-2"><div className="text-xs text-red-400">A 0 PF: tiri contro morte</div>{saves('successi')}{saves('fallimenti')}</div>}
+      {pf.attuali === 0 && <div className="space-y-1 rounded border border-line p-2"><div className="text-xs text-danger">A 0 PF: tiri contro morte</div>{saves('successi')}{saves('fallimenti')}</div>}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { Cfg, FieldDef, Node, Root, edit, move, nid, reorderRoot, useLayoutDoc } from './layouts'
 import { getPath, setPath } from './path'
+import { useMedia } from './useMedia'
 
 const Grid = WidthProvider(GridLayout)
 const ROW = 8, GAP = 8 // una riga della griglia = 16 px
@@ -18,7 +19,7 @@ function Field({ cfg, data, set }: { cfg: Cfg; data: any; set: Setter }) {
   const v = getPath(data, cfg.path)
   if (cfg.input === 'check') return <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!v} onChange={e => set(cfg.path, e.target.checked)} />{cfg.label}</label>
   return (
-    <label className="block text-sm"><span className="opacity-70">{cfg.label}</span>
+    <label className="block text-sm"><span className="text-xs text-muted">{cfg.label}</span>
       {cfg.input === 'area' ? <textarea className="field min-h-20" rows={4} value={v ?? ''} onChange={e => set(cfg.path, e.target.value)} />
         : cfg.input === 'select' ? <select className="field" value={v ?? ''} onChange={e => set(cfg.path, e.target.value)}>{(cfg.options ?? []).map(([o, l]: [string, string]) => <option key={o} value={o}>{l}</option>)}</select>
         : <input className="field" type={cfg.input === 'number' ? 'number' : 'text'} value={v ?? ''} onChange={e => set(cfg.path, cfg.input === 'number' ? (e.target.value === '' ? 0 : +e.target.value) : e.target.value)} />}
@@ -93,14 +94,14 @@ function NodeView({ n, ctx, root }: { n: Node; ctx: Ctx; root?: boolean }) {
   else if (n.type === 'field') body = <Field cfg={n.cfg ?? {}} data={ctx.data} set={ctx.set} />
   else if (n.type === 'text') body = <p className="whitespace-pre-wrap text-sm">{n.cfg?.text}</p>
   else if (def) body = <def.C c={ctx.data} set={ctx.set} cfg={{ ...def.cfg, ...n.cfg, nodeId: n.id }} patch={ctx.patch} />
-  else body = <p className="text-xs text-red-400">Blocco sconosciuto: {n.type}</p>
+  else body = <p className="text-xs text-danger">Blocco sconosciuto: {n.type}</p>
 
   const label = n.type === 'group' ? n.title || '(senza titolo)' : editing ? (def?.label ?? (n.type === 'text' ? 'Testo' : 'Campo')) : ''
   return (
-    <div className={`${n.type === 'group' && !root ? 'rounded border border-line p-2' : ''} ${editing ? 'outline-dashed outline-1 outline-brass/40' : ''}`}>
+    <div className={`${n.type === 'group' && !root ? 'rounded-md border border-line bg-ink/40 p-2.5' : ''} ${editing ? 'outline-dashed outline-1 outline-brass/40' : ''}`}>
       {(label || editing) && (
-        <div className={`mb-1 flex items-center justify-between gap-2 ${root && editing ? 'drag cursor-move' : ''}`}>
-          <h3 className="font-display text-brass">{root && editing ? '⠿ ' : ''}{label}</h3>
+        <div className={`${root ? 'mb-2 border-b border-line pb-1.5' : 'mb-1'} flex items-center justify-between gap-2 ${root && editing ? 'drag cursor-move' : ''}`}>
+          <h3 className={`text-brass ${root ? 'text-base' : 'text-sm'}`}>{root && editing ? '⠿ ' : ''}{label}</h3>
           {editing && (
             <span className="no-drag flex shrink-0 gap-1 text-xs">
               <button className="btn px-1 py-0" title="Impostazioni" onClick={() => setOpen(open === n.id ? null : n.id)}>⚙</button>
@@ -144,6 +145,7 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
   const [roots, setRoots] = useLayoutDoc(layoutKey, kind.defaults)
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
+  const narrow = useMedia('(max-width: 767px)') // su schermi stretti le sezioni si impilano una sotto l'altra
   const [compact, setCompact] = useState(false) // «Riordina sezioni»: solo i titoli, per spostarle senza scorrere
   useEffect(() => { if (!editing) setCompact(false) }, [editing])
   // Cronologia delle modifiche al layout (struttura, spostamenti, dimensioni). Le raffiche ravvicinate (es. digitare un titolo) contano come un passo.
@@ -192,6 +194,13 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
           <span className="text-xs opacity-60">Trascina il titolo ⠿ per spostare · trascina i bordi per ridimensionare (larghezza fino a 12 colonne)</span>
         </>}
       </div>
+      {narrow ? (
+        <div className="space-y-3">
+          {[...roots].sort((a, b) => a.y - b.y || a.x - b.x).map(r => (
+            <div key={r.id} className={`rounded-lg border bg-panel p-3 shadow-sm shadow-black/20 ${editing ? 'border-brass' : 'border-line'}`}><NodeView n={r} ctx={ctx} root /></div>
+          ))}
+        </div>
+      ) : (
       <Grid layout={roots.map(r => ({ i: r.id, x: r.x, y: r.y, w: r.w, h: compact ? 3 : r.h, minW: 2 }))} cols={12} rowHeight={ROW} margin={[GAP, GAP]}
         isDraggable={editing} isResizable={editing && !compact} draggableCancel=".no-drag" onDragStart={snap} onResizeStart={snap} resizeHandles={['s', 'e', 'w', 'se', 'sw']} draggableHandle=".drag"
         onResizeStop={(_l, old, item) => { if (old.h !== item.h) setRoots(rs => rs.map(r => (r.id === item.i ? { ...r, auto: false } : r))) }}
@@ -207,7 +216,7 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
           return changed ? next : rs
         })}>
         {roots.map(r => compact ? (
-          <div key={r.id} className="rounded border border-brass bg-panel">
+          <div key={r.id} className="rounded-lg border border-brass bg-panel">
             <div className="drag flex h-full cursor-move items-center gap-2 px-3">
               <span aria-hidden>⠿</span>
               <span className="truncate font-display text-brass">{r.title || '(senza titolo)'}</span>
@@ -219,13 +228,14 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
             </div>
           </div>
         ) : (
-          <div key={r.id} className={`rounded border bg-panel ${editing ? 'border-brass' : 'border-line'}`}>
+          <div key={r.id} className={`rounded-lg border bg-panel shadow-sm shadow-black/20 ${editing ? 'border-brass' : 'border-line'}`}>
             <FitBox auto={r.auto !== false} h={r.h} onFit={h => setRoots(rs => rs.map(x => (x.id === r.id && x.auto !== false && x.h !== h ? { ...x, h } : x)))}>
               <NodeView n={r} ctx={ctx} root />
             </FitBox>
           </div>
         ))}
       </Grid>
+      )}
     </div>
   )
 }

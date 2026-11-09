@@ -35,12 +35,16 @@ function SkillList({ c, set, list }: { c: Character; set: Setter; list: typeof S
 export const AbilityBlock = ({ c, set, cfg }: P) => {
   const a = cfg.ability as Ability
   return (
-    <div className="rounded border border-line p-2">
-      <div className="flex items-center justify-between">
-        <span className="font-display">{ABILITY_LABEL[a]}</span>
-        <button className="font-display text-xl text-brass" title="Tira" onClick={() => rollEvent(`1d20${fmt(mod(c.abilita[a]))}`, ABILITY_LABEL[a])}>{fmt(mod(c.abilita[a]))}</button>
+    <div className="rounded-md border border-line p-2">
+      <div className="flex items-center gap-3">
+        <div className="hex shrink-0">
+          <button className="font-display text-xl text-brass" title="Tira" aria-label={`Tira ${ABILITY_LABEL[a]} ${fmt(mod(c.abilita[a]))}`} onClick={() => rollEvent(`1d20${fmt(mod(c.abilita[a]))}`, ABILITY_LABEL[a])}>{fmt(mod(c.abilita[a]))}</button>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-display">{ABILITY_LABEL[a]}</div>
+          <input className="field mt-1 text-center" type="number" value={c.abilita[a]} onChange={e => set('abilita.' + a, num(e.target.value))} aria-label={ABILITY_LABEL[a]} />
+        </div>
       </div>
-      <input className="field mt-1 text-center" type="number" value={c.abilita[a]} onChange={e => set('abilita.' + a, num(e.target.value))} aria-label={ABILITY_LABEL[a]} />
       {cfg.save && (
         <label className="mt-1 flex items-center gap-2 text-sm">
           <input type="checkbox" checked={!!c.tiriSalvezza?.[a]} onChange={e => set('tiriSalvezza.' + a, e.target.checked)} />

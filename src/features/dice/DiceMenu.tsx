@@ -18,7 +18,7 @@ function poolExpr(pool: Record<number, number>, mode: Mode, mod: number) {
 }
 
 function Result({ r }: { r: RollResult }) {
-  const tone = r.crit === 'max' ? 'text-green-400' : r.crit === 'min' ? 'text-red-400' : 'text-brass'
+  const tone = r.crit === 'max' ? 'text-good' : r.crit === 'min' ? 'text-danger' : 'text-brass'
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-3">
@@ -30,7 +30,7 @@ function Result({ r }: { r: RollResult }) {
           <div key={i} className="flex flex-wrap items-center gap-1">
             <span className="w-16 shrink-0 opacity-60">{t.sign < 0 ? '−' : ''}{t.label}</span>
             {t.dice?.map((d, j) => (
-              <span key={j} className={`rounded border px-1.5 ${d.drop ? 'border-line line-through opacity-40' : d.v === t.faces ? 'border-brass text-brass' : d.v === 1 ? 'border-red-400/60 text-red-400' : 'border-line'}`}>{d.v}</span>
+              <span key={j} className={`rounded border px-1.5 ${d.drop ? 'border-line line-through opacity-40' : d.v === t.faces ? 'border-brass text-brass' : d.v === 1 ? 'border-danger/60 text-danger' : 'border-line'}`}>{d.v}</span>
             ))}
             <span className="ml-auto opacity-70">= {t.sign < 0 ? '−' : ''}{t.value}</span>
           </div>
@@ -84,7 +84,7 @@ export function DiceMenu() {
       )}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onMouseDown={e => e.target === e.currentTarget && setOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Tira i dadi" className="max-h-[92vh] w-[min(48rem,100%)] space-y-4 overflow-y-auto overflow-x-hidden rounded border border-line bg-panel p-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Tira i dadi" className="max-h-[92vh] w-[min(48rem,100%)] space-y-4 overflow-y-auto overflow-x-hidden dialog p-5">
             <div className="flex items-center justify-between"><h2 className="font-display text-2xl text-brass">Tira i dadi</h2><button className="btn px-2 py-0" onClick={() => setOpen(false)} aria-label="Chiudi">✕</button></div>
 
             <div className="grid grid-cols-4 gap-2 md:grid-cols-7">
@@ -119,7 +119,7 @@ export function DiceMenu() {
               <button className="btn" onClick={save} title="Salva questo tiro tra i preferiti">★ Salva</button>
             </div>
 
-            {err && <p className="text-sm text-red-400">{err}</p>}
+            {err && <p className="text-sm text-danger">{err}</p>}
             {log[0] && <div className="rounded border border-line bg-ink p-3"><Result r={log[0]} /></div>}
 
             <div className="flex gap-2">

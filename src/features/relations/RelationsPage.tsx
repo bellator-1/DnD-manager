@@ -54,8 +54,8 @@ export function RelationsPage() {
             <select className="field w-auto" value={tipo} onChange={e => setTipo(e.target.value)}><option value="">Tutte</option>{tipi.map(t => <option key={t}>{t}</option>)}</select>
           </label>
           <span className="ml-auto flex items-center gap-3 text-xs opacity-80">
-            <span><span className="mr-1 inline-block h-3 w-3 rounded-full" style={{ background: '#c9a24b' }} />Personaggio</span>
-            <span><span className="mr-1 inline-block h-3 w-3 rounded-full" style={{ background: '#5bb7d9' }} />PNG / creatura</span>
+            <span><span className="mr-1 inline-block h-3 w-3 rounded-full" style={{ background: 'rgb(var(--c-brass))' }} />Personaggio</span>
+            <span><span className="mr-1 inline-block h-3 w-3 rounded-full" style={{ background: 'rgb(var(--c-info))' }} />PNG / creatura</span>
           </span>
         </div>
         {!ids.length ? <p className="opacity-60">Nessuna relazione da mostrare: aggiungile dal blocco «Relazioni» di una scheda o di un PNG (nelle schede già salvate si inserisce da «Modifica layout»).</p> : (
@@ -65,8 +65,8 @@ export function RelationsPage() {
               const a = at(e.a), b = at(e.b)
               return (
                 <g key={e.a + e.b}>
-                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#8a8f99" strokeWidth={2} />
-                  {e.tipi.size > 0 && <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 4} textAnchor="middle" fontSize={12} fill="#e6e2d8" stroke="#1d2026" strokeWidth={3} paintOrder="stroke">{[...e.tipi].join(' · ')}</text>}
+                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} style={{ stroke: 'rgb(var(--c-edge))' }} strokeWidth={2} />
+                  {e.tipi.size > 0 && <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 4} textAnchor="middle" fontSize={12} style={{ fill: 'rgb(var(--c-paper))', stroke: 'rgb(var(--c-panel))' }} strokeWidth={3} paintOrder="stroke">{[...e.tipi].join(' · ')}</text>}
                 </g>
               )
             })}
@@ -75,8 +75,8 @@ export function RelationsPage() {
               return (
                 <g key={id} transform={`translate(${pt.x} ${pt.y})`} style={{ cursor: 'grab' }}
                   onPointerDown={e => { e.preventDefault(); moved.current = false; setDrag(id) }} onClick={() => { if (!moved.current) go(id) }}>
-                  <circle r={22} fill={p.kind === 'characters' ? '#c9a24b' : '#5bb7d9'} stroke="#14161a" strokeWidth={3} />
-                  <text y={40} textAnchor="middle" fontSize={14} fill="#e6e2d8" stroke="#14161a" strokeWidth={3} paintOrder="stroke">{p.name}</text>
+                  <circle r={22} style={{ fill: p.kind === 'characters' ? 'rgb(var(--c-brass))' : 'rgb(var(--c-info))', stroke: 'rgb(var(--c-panel))' }} strokeWidth={3} />
+                  <text y={40} textAnchor="middle" fontSize={14} style={{ fill: 'rgb(var(--c-paper))', stroke: 'rgb(var(--c-panel))' }} strokeWidth={3} paintOrder="stroke">{p.name}</text>
                 </g>
               )
             })}

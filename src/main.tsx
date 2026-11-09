@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './index.css'
 import { CampaignsPage, CampaignLayout } from './App'
+import { StorageGate } from './StorageGate'
 import { MapsPage } from './features/maps/MapsPage'
 import { CharactersPage } from './features/characters/CharactersPage'
 import { NotesPage } from './features/notes/NotesPage'
@@ -15,7 +16,7 @@ import { RelationsPage } from './features/relations/RelationsPage'
 import { ManualsPage } from './features/manuals/ManualsPage'
 
 createRoot(document.getElementById('root')!).render(
-  <React.StrictMode><BrowserRouter><Routes>
+  <React.StrictMode><StorageGate><BrowserRouter><Routes>
     <Route path="/" element={<CampaignsPage />} />
     <Route path="/c/:cid" element={<CampaignLayout />}>
       <Route index element={<Navigate to="schede" replace />} />
@@ -30,5 +31,5 @@ createRoot(document.getElementById('root')!).render(
       <Route path="relazioni" element={<RelationsPage />} />
       <Route path="manuali" element={<ManualsPage />} />
     </Route>
-  </Routes></BrowserRouter></React.StrictMode>
+  </Routes></BrowserRouter></StorageGate></React.StrictMode>
 )

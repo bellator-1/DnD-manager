@@ -25,7 +25,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[12vh]" onMouseDown={e => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label="Cerca nella campagna" className="w-[min(40rem,100%)] rounded border border-line bg-panel p-3 shadow-2xl"
+      <div role="dialog" aria-modal="true" aria-label="Cerca nella campagna" className="w-[min(40rem,100%)] dialog p-3"
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}>
         <input ref={input} className="field text-lg" role="combobox" aria-expanded={hits.length > 0} aria-controls="search-results" aria-activedescendant={hits[i] ? `hit-${i}` : undefined}
           placeholder="Cerca in schede, note, oggetti, PNG, mappe, sessioni…" value={q} onChange={e => setQ(e.target.value)}

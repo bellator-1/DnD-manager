@@ -9,7 +9,12 @@ import { store } from './storage'
 const FORMAT = 'dnd-manage-campaign'
 export const safe = (s: string) => s.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'file'
 const isBin = (rel: string) => rel.startsWith('images/')
-const toDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
+const toDataUrl = async (b: Blob) => {
+  const u8 = new Uint8Array(await b.arrayBuffer())
+  let s = ''
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000))
+  return `data:${b.type || 'application/octet-stream'};base64,${btoa(s)}`
+}
 
 // Immagini usate da una scheda (galleria + ritratto), per esportarle insieme e per eliminarle insieme alla scheda.
 export const imageNames = (e: any): string[] =>
@@ -33,7 +38,8 @@ export function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-export async function exportCampaign(c: Campaign) {
+// Testo JSON del backup (separato dal download per poterlo verificare).
+export async function buildExport(c: Campaign): Promise<string> {
   const files: Record<string, string> = {}
   const binary: string[] = []
   for (const p of await store().listAll(c.id)) {
@@ -42,8 +48,9 @@ export async function exportCampaign(c: Campaign) {
     if (isBin(rel)) { const b = await store().readBlob(p); if (b) { files[rel] = await toDataUrl(b); binary.push(rel) } }
     else { const t = await store().read(p); if (t !== null) files[rel] = t }
   }
-  download(`${safe(c.name)}.dnd.json`, JSON.stringify({ format: FORMAT, version: 2, exportedAt: new Date().toISOString(), campaign: { name: c.name }, binary, files }))
+  return JSON.stringify({ format: FORMAT, version: 2, exportedAt: new Date().toISOString(), campaign: { name: c.name }, binary, files })
 }
+export async function exportCampaign(c: Campaign) { download(`${safe(c.name)}.dnd.json`, await buildExport(c)) }
 
 // L'importazione crea sempre una campagna nuova (nuovo id): non sovrascrive mai niente di esistente. Legge anche i backup della 0.7.
 export async function importCampaign(file: File): Promise<Campaign> {

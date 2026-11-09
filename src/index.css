@@ -1,34 +1,71 @@
 @tailwind base; @tailwind components; @tailwind utilities;
-body { @apply bg-ink text-paper; }
-@layer components {
-  .field { @apply bg-ink border border-line rounded px-2 py-1 w-full focus:outline-none focus:border-brass; }
-  .btn { @apply border border-line rounded px-3 py-1 hover:border-brass focus-visible:outline focus-visible:outline-brass; }
+
+/* Tema scuro («tavolo», predefinito) e chiaro («carta»). Coppie di colori verificate: testo ≥ 4.5:1, bordi dei controlli ≥ 3:1. */
+:root {
+  color-scheme: dark;
+  --c-ink: 17 21 26; --c-panel: 24 30 37; --c-raised: 33 40 50; --c-line: 48 57 68; --c-edge: 104 116 127;
+  --c-paper: 232 228 218; --c-muted: 156 166 176; --c-brass: 208 169 79; --c-onbrass: 17 21 26;
+  --c-danger: 240 112 106; --c-good: 95 191 127; --c-info: 91 183 217;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --c-ink: 241 243 246; --c-panel: 255 255 255; --c-raised: 232 236 241; --c-line: 213 219 227; --c-edge: 118 130 143;
+  --c-paper: 28 33 40; --c-muted: 85 98 112; --c-brass: 125 95 14; --c-onbrass: 255 255 255;
+  --c-danger: 179 38 30; --c-good: 27 110 56; --c-info: 11 106 133;
 }
 
-/* Stile dell'editor, adattato da Lorekeeper */
-.lore .ProseMirror { outline: none; min-height: 55vh; display: flow-root; line-height: 1.7; }
+@layer base {
+  body { @apply bg-ink font-sans text-paper antialiased; line-height: 1.5; }
+  h1, h2, h3 { @apply font-display; }
+  :focus-visible { outline: 2px solid rgb(var(--c-brass)); outline-offset: 2px; }
+  ::selection { background: rgb(var(--c-brass) / .35); }
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--c-edge)) transparent; }
+  input[type='number'] { font-variant-numeric: tabular-nums; }
+  summary::-webkit-details-marker { display: none; }
+  @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+}
+
+@layer components {
+  .field { @apply min-h-8 w-full rounded-md border border-edge bg-ink px-2 py-1 text-sm placeholder:text-muted; }
+  .field:focus-visible { @apply border-brass; }
+  textarea.field { @apply leading-relaxed; }
+  /* Area di tocco minima 28 px anche per i pulsanti compatti (px-1 py-0 text-xs). */
+  .btn { @apply inline-flex min-h-7 min-w-7 select-none items-center justify-center gap-1 rounded-md border border-edge bg-raised px-3 text-sm transition-colors hover:border-brass disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-edge; }
+  .btn-primary { @apply border-brass bg-brass text-onbrass hover:brightness-110; }
+  .btn-danger { @apply border-danger text-danger hover:border-danger; }
+  .menu-item { @apply block w-full rounded-md px-3 py-1.5 text-left text-sm hover:bg-raised; }
+  .dialog { @apply rounded-xl border border-edge bg-panel shadow-2xl shadow-black/50; }
+  /* Esagono del d20: cornice dei modificatori di caratteristica. */
+  .hex { position: relative; width: 3.5rem; height: 4rem; background: rgb(var(--c-brass)); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+  .hex::before { content: ''; position: absolute; inset: 2px; background: rgb(var(--c-panel)); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+  .hex > button { position: absolute; inset: 0; display: grid; place-items: center; }
+  .hex > button:focus-visible { outline-offset: -5px; }
+}
+
+/* Stile dell'editor, adattato da Lorekeeper: righe corte (72 caratteri) e interlinea ampia per leggere a lungo. */
+.lore .ProseMirror { outline: none; min-height: 55vh; display: flow-root; line-height: 1.75; max-width: 72ch; margin-inline: auto; font-size: 1.04rem; }
 .lore .ProseMirror > * + * { margin-top: .8em; }
 .lore h1, .lore h2, .lore h3 { font-family: "Iowan Old Style", Palatino, Georgia, serif; font-weight: 600; line-height: 1.25; }
 .lore h1 { font-size: 1.75em; } .lore h2 { font-size: 1.4em; } .lore h3 { font-size: 1.2em; }
 .lore ul { list-style: disc; padding-left: 1.5em; } .lore ol { list-style: decimal; padding-left: 1.5em; }
-.lore blockquote { border-left: 3px solid theme('colors.brass'); padding-left: 1em; opacity: .75; font-style: italic; }
+.lore blockquote { border-left: 3px solid theme('colors.brass'); padding-left: 1em; color: theme('colors.muted'); font-style: italic; }
 .lore a { color: theme('colors.brass'); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .lore hr { border: 0; border-top: 1px solid theme('colors.line'); }
 .lore code { background: theme('colors.ink'); border-radius: 4px; padding: .1em .35em; font-size: .9em; }
-.lore p.is-editor-empty:first-child::before { content: attr(data-placeholder); opacity: .5; float: left; height: 0; pointer-events: none; }
+.lore p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: theme('colors.muted'); float: left; height: 0; pointer-events: none; }
 .lore table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-.lore td, .lore th { border: 1px solid theme('colors.line'); padding: .4em .6em; vertical-align: top; }
-.lore th { background: theme('colors.ink'); font-weight: 600; text-align: left; }
+.lore td, .lore th { border: 1px solid theme('colors.edge'); padding: .4em .6em; vertical-align: top; }
+.lore th { background: theme('colors.raised'); font-weight: 600; text-align: left; }
 .lore td > p, .lore th > p { margin: 0; }
-.lore .selectedCell { background: rgba(201, 162, 75, .15); }
+.lore .selectedCell { background: rgb(var(--c-brass) / .18); }
 .lore ul[data-type="taskList"] { list-style: none; padding-left: .2em; }
 .lore ul[data-type="taskList"] li { display: flex; gap: .55em; align-items: flex-start; }
 .lore ul[data-type="taskList"] li > label { margin-top: .4em; }
 .lore ul[data-type="taskList"] li > div { flex: 1; }
-.sug-box { position: fixed; z-index: 60; min-width: 12rem; padding: 4px; border: 1px solid theme('colors.line'); border-radius: 6px; background: theme('colors.panel'); }
-.sug { padding: 4px 8px; border-radius: 4px; cursor: pointer; } .sug.on { background: theme('colors.line'); }
+.sug-box { position: fixed; z-index: 60; min-width: 12rem; padding: 4px; border: 1px solid theme('colors.edge'); border-radius: 8px; background: theme('colors.panel'); box-shadow: 0 10px 30px rgb(0 0 0 / .4); }
+.sug { padding: 4px 8px; border-radius: 4px; cursor: pointer; } .sug.on { background: theme('colors.raised'); }
 
-/* Maniglie di ridimensionamento delle sezioni: visibili sul tema scuro */
+/* Maniglie di ridimensionamento delle sezioni: visibili su entrambi i temi */
 .react-resizable-handle { background-image: none !important; }
 .react-resizable-handle::after { border-color: theme('colors.brass') !important; width: 8px !important; height: 8px !important; }
 .react-grid-item.react-grid-placeholder { background: theme('colors.brass') !important; opacity: .15 !important; }

@@ -6,6 +6,7 @@ let snap: { pending: number; error: string | null; last: number } = { pending, e
 const subs = new Set<() => void>()
 const emit = () => { snap = { pending, error, last }; subs.forEach(f => f()) }
 
+export const saveSnapshot = () => snap
 export const savingNow = () => pending > 0
 export const beginSave = () => { pending++; emit() }
 export const endSave = (err?: unknown) => {
@@ -28,7 +29,7 @@ export function SaveIndicator() {
     window.addEventListener('beforeunload', h); return () => window.removeEventListener('beforeunload', h)
   }, [busy])
   return (
-    <span role="status" aria-live="polite" className={`text-xs ${s.error ? 'text-red-400' : 'opacity-70'}`}>
+    <span role="status" aria-live="polite" className={`text-xs ${s.error ? 'text-danger' : 'opacity-70'}`}>
       {s.error ? `⚠ Non salvato: ${s.error}` : busy ? 'Salvataggio…' : s.last ? '✓ Salvato' : ''}
     </span>
   )

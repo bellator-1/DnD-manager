@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { delHandle, ensurePermission, getHandle, setHandle } from '../../core/handles'
 import { tracked } from '../../core/saveStatus'
 import { findInPages } from '../../core/search'
 import { SidePanel, usePersisted } from '../../core/SidePanel'
@@ -13,9 +14,10 @@ import { OutlineItem, destToPage, extractAll, flattenOutline, loadPdf } from './
 function Viewer({ m, update, onDelete, initialPage }: { m: Manual; update: (m: Manual) => void; onDelete: () => void; initialPage?: number }) {
   const { cid = '' } = useParams()
   const [doc, setDoc] = useState<any>(null)
-  const [status, setStatus] = useState<'loading' | 'missing' | 'error' | 'ok'>('loading')
+  const [status, setStatus] = useState<'loading' | 'missing' | 'permission' | 'error' | 'ok'>('loading')
+  const [ask, setAsk] = useState<any>(null) // maniglia che attende il permesso di lettura
   const [page, setPage] = useState(initialPage ?? m.last ?? 1)
-  const [scale, setScale] = useState(1.2)
+  const [scale, setScale] = useState(m.zoom || 1.2)
   const [outline, setOutline] = useState<OutlineItem[]>([])
   const [panel, patchPanel] = usePersisted('ui:manualpanel', { tab: 'sommario' })
   const [pages, setPages] = useState<string[] | null>(null)
@@ -27,12 +29,23 @@ function Viewer({ m, update, onDelete, initialPage }: { m: Manual; update: (m: M
   const stop = useRef(false)
   const bookmarks = m.bookmarks ?? []
 
+  // Il PDF si trova dove l'utente l'ha messo (maniglia salvata nel browser) oppure nella copia dentro la cartella dei dati.
+  const fetchBlob = async (): Promise<Blob | 'missing' | { ask: any }> => {
+    if (m.source === 'handle') {
+      const h = await getHandle(`pdf:${m.id}`).catch(() => null)
+      if (!h) return 'missing'
+      if (!(await ensurePermission(h, 'read', false).catch(() => false))) return { ask: h }
+      try { return await h.getFile() } catch { return 'missing' } // file spostato o eliminato
+    }
+    return (await store().readBlob(`${cid}/manual-files/${m.file}`)) ?? 'missing'
+  }
   const load = async () => {
     setStatus('loading')
-    const blob = await store().readBlob(`${cid}/manual-files/${m.file}`)
-    if (!blob) { setStatus('missing'); return }
+    const got = await fetchBlob()
+    if (got === 'missing') { setStatus('missing'); return }
+    if ('ask' in got) { setAsk(got.ask); setStatus('permission'); return }
     try {
-      const d = await loadPdf(await blob.arrayBuffer())
+      const d = await loadPdf(await got.arrayBuffer())
       setDoc(d); setStatus('ok')
       if (m.pages !== d.numPages) update({ ...m, pages: d.numPages })
       flattenOutline(d).then(setOutline).catch(() => {})
@@ -47,10 +60,11 @@ function Viewer({ m, update, onDelete, initialPage }: { m: Manual; update: (m: M
   const fit = async () => {
     if (!doc || !wrap.current) return
     const p = await doc.getPage(Math.min(page, doc.numPages))
-    setScale(Math.max(0.3, Math.min(4, (wrap.current.clientWidth - 32) / p.getViewport({ scale: 1 }).width)))
+    setScale(+Math.max(0.3, Math.min(4, (wrap.current.clientWidth - 32) / p.getViewport({ scale: 1 }).width)).toFixed(2))
   }
-  useEffect(() => { if (doc) fit() }, [doc])
-  useEffect(() => { if (doc && page !== m.last) update({ ...m, last: page }) }, [page])
+  useEffect(() => { if (doc && !m.zoom) fit() }, [doc]) // senza zoom salvato si adatta alla larghezza
+  // Impostazioni del manuale (ultima pagina e zoom) salvate nella sua scheda.
+  useEffect(() => { if (doc && (page !== m.last || Math.abs(scale - (m.zoom ?? 0)) > 0.001)) update({ ...m, last: page, zoom: scale }) }, [page, scale, doc])
   useEffect(() => {
     if (!doc || !canvas.current) return
     let alive = true
@@ -82,16 +96,27 @@ function Viewer({ m, update, onDelete, initialPage }: { m: Manual; update: (m: M
     const label = prompt('Nome del segnalibro', `Pagina ${page}`)?.trim()
     if (label) update({ ...m, bookmarks: [...bookmarks, { page, label }].sort((a, b) => a.page - b.page) })
   }
-  const reattach = async (f: File) => { try { await tracked(store().writeBlob(`${cid}/manual-files/${m.file}`, f)); load() } catch (e) { alert(`Impossibile salvare il PDF: ${(e as Error).message}`) } }
+  const relink = async () => {
+    try {
+      const [h] = await (window as any).showOpenFilePicker({ types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }], multiple: false })
+      const f: File = await h.getFile()
+      if (m.source === 'handle') { await setHandle(`pdf:${m.id}`, h); update({ ...m, file: f.name }) }
+      else await tracked(store().writeBlob(`${cid}/manual-files/${m.file}`, f))
+      load()
+    } catch (e) { if ((e as Error).name !== 'AbortError') alert(`Impossibile ricollegare il PDF: ${(e as Error).message}`) }
+  }
+  const allow = async () => { try { if (ask && (await ensurePermission(ask, 'read', true))) load() } catch (e) { alert((e as Error).message) } }
   const tab = (id: string, label: string) => <button key={id} className={`rounded px-2 py-1 ${panel.tab === id ? 'bg-ink text-brass' : 'hover:text-brass'}`} aria-pressed={panel.tab === id} onClick={() => patchPanel({ tab: panel.tab === id ? '' : id })}>{label}</button>
 
   if (status !== 'ok') return (
     <div className="space-y-3 p-6">
       <h2 className="font-display text-xl text-brass">{m.name}</h2>
       {status === 'loading' && <p className="opacity-70">Apro il PDF…</p>}
-      {status === 'error' && <p className="text-red-400">Impossibile aprire il PDF: il file potrebbe essere danneggiato o protetto.</p>}
-      {status === 'missing' && <p>Il file PDF non è presente su questo computer (i PDF dei manuali non sono inclusi nei backup). Scegli di nuovo il file per ricollegarlo: segnalibri e ultima pagina restano.</p>}
-      {status !== 'loading' && <><input ref={refile} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; if (f) reattach(f); e.target.value = '' }} /><button className="btn" onClick={() => refile.current?.click()}>Scegli di nuovo il PDF</button> <button className="btn" onClick={onDelete}>Elimina il manuale</button></>}
+      {status === 'error' && <p className="text-danger">Impossibile aprire il PDF: il file potrebbe essere danneggiato o protetto.</p>}
+      {status === 'permission' && <><p>Il browser vuole il tuo consenso per leggere di nuovo «{m.file}». Il file non viene copiato né modificato.</p><button className="btn" onClick={allow}>Consenti la lettura</button></>}
+      {status === 'missing' && <p>Non trovo più il PDF «{m.file}» (spostato, eliminato, oppure aperto da un altro browser). Scegli di nuovo il file per ricollegarlo: segnalibri, ultima pagina e zoom restano.</p>}
+      {(status === 'missing' || status === 'error') && <button className="btn" onClick={relink}>Scegli di nuovo il PDF</button>}
+      {status !== 'loading' && <button className="btn" onClick={onDelete}>Elimina il manuale</button>}
     </div>
   )
 
@@ -122,7 +147,7 @@ function Viewer({ m, update, onDelete, initialPage }: { m: Manual; update: (m: M
                 {!pages && progress === null && <><p className="opacity-80">Per cercare nel testo l'app deve leggere il PDF una volta (può richiedere un po' per un manuale lungo). Il testo resta sul tuo computer.</p><button className="btn w-full" onClick={buildIndex}>Prepara la ricerca</button></>}
                 {progress !== null && <><p role="status">Leggo il PDF… pagina {progress} di {total}</p><button className="btn" onClick={() => { stop.current = true }}>Interrompi</button></>}
                 {pages && <>
-                  {pages.every(p => !p) && <p className="text-red-400">Il PDF non contiene testo selezionabile (probabilmente è una scansione): la ricerca non è disponibile.</p>}
+                  {pages.every(p => !p) && <p className="text-danger">Il PDF non contiene testo selezionabile (probabilmente è una scansione): la ricerca non è disponibile.</p>}
                   <input className="field" placeholder="Cerca nel manuale…" aria-label="Cerca nel manuale" value={q} onChange={e => setQ(e.target.value)} />
                   {q.trim() && <p className="text-xs opacity-60">{results.length ? `${results.length}${results.length >= 60 ? '+' : ''} pagine` : 'Nessun risultato'}</p>}
                   <ul className="space-y-1">{results.map(r => <li key={r.page}><button className="block w-full rounded px-1 py-0.5 text-left hover:bg-ink" onClick={() => go(r.page)}><b className="text-brass">pag. {r.page}</b><span className="block truncate text-xs opacity-70">{r.snippet}</span></button></li>)}</ul>
@@ -157,17 +182,28 @@ export function ManualsPage() {
   const file = useRef<HTMLInputElement>(null)
   const m = items.find(x => x.id === sel)
 
-  const upload = async (f: File) => {
+  // «Collega»: il PDF resta dov'è; si salva solo la maniglia, che il browser ricorda. «Copia»: una copia dentro la cartella dei dati.
+  const link = async () => {
+    try {
+      const [h] = await (window as any).showOpenFilePicker({ types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }], multiple: false })
+      const f: File = await h.getFile()
+      const e = await create({ name: f.name.replace(/\.pdf$/i, ''), file: f.name, source: 'handle', pages: 0, last: 1, bookmarks: [] })
+      await setHandle(`pdf:${e.id}`, h)
+      setSel(e.id)
+    } catch (e) { if ((e as Error).name !== 'AbortError') alert(`Impossibile collegare il PDF: ${(e as Error).message}`) }
+  }
+  const copy = async (f: File) => {
     if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { alert('Scegli un file PDF.'); return }
     try {
       const name = `${crypto.randomUUID()}.pdf`
       await tracked(store().writeBlob(`${cid}/manual-files/${name}`, f))
-      setSel((await create({ name: f.name.replace(/\.pdf$/i, ''), file: name, pages: 0, last: 1, bookmarks: [] })).id)
-    } catch (e) { alert(`Impossibile salvare il PDF: ${(e as Error).message}. Nel salvataggio del browser i file grandi non entrano: usa «Usa una cartella sul disco».`) }
+      setSel((await create({ name: f.name.replace(/\.pdf$/i, ''), file: name, source: 'copy', pages: 0, last: 1, bookmarks: [] })).id)
+    } catch (e) { alert(`Impossibile copiare il PDF: ${(e as Error).message}`) }
   }
   const del = async () => {
     if (!m || !confirm(`Eliminare il manuale «${m.name}» dall'app? Il tuo PDF originale non viene toccato.`)) return
-    await store().remove(`${cid}/manual-files/${m.file}`)
+    if (m.source === 'handle') await delHandle(`pdf:${m.id}`).catch(() => {})
+    else await store().remove(`${cid}/manual-files/${m.file}`)
     await store().remove(`${cid}/manual-files/${m.id}.index.json`)
     await remove(m.id); setSel(null)
   }
@@ -175,11 +211,12 @@ export function ManualsPage() {
     <div className="flex h-full min-h-0">
       <SidePanel id="manuals" title="Manuali">
         <div className="space-y-2 p-2">
-          <input ref={file} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
-          <button className="btn w-full" onClick={() => file.current?.click()}>Importa un PDF…</button>
-          <p className="text-xs opacity-60">Carica i manuali che possiedi. Restano sul tuo computer e non entrano nei backup.</p>
+          <input ref={file} type="file" accept="application/pdf" hidden onChange={e => { const f = e.target.files?.[0]; if (f) copy(f); e.target.value = '' }} />
+          <button className="btn w-full" onClick={link}>Collega un PDF…</button>
+          <button className="btn w-full" onClick={() => file.current?.click()}>Copia un PDF nella cartella…</button>
+          <p className="text-xs opacity-60">«Collega» lascia il PDF dove sta e l'app si ricorda dove trovarlo (il browser può chiederti il permesso a ogni apertura). «Copia» ne fa una copia nella cartella dei dati. In nessun caso entra nei backup.</p>
           <ul className="space-y-1">{items.map(x => (
-            <li key={x.id}><button onClick={() => setSel(x.id)} className={`w-full rounded px-2 py-1 text-left ${x.id === sel ? 'bg-ink text-brass' : 'hover:text-brass'}`}>{x.name || '(senza nome)'}{x.pages ? <span className="ml-1 text-xs opacity-60">{x.pages} pag.</span> : null}</button></li>
+            <li key={x.id}><button onClick={() => setSel(x.id)} className={`w-full rounded px-2 py-1 text-left ${x.id === sel ? 'bg-ink text-brass' : 'hover:text-brass'}`}>{x.name || '(senza nome)'}{x.pages ? <span className="ml-1 text-xs opacity-60">{x.pages} pag.</span> : null}<span className="ml-1 text-xs opacity-60">{x.source === 'handle' ? '· collegato' : '· copia'}</span></button></li>
           ))}</ul>
         </div>
       </SidePanel>
