@@ -7,6 +7,8 @@ import { removeImage, saveImage, useImageUrl } from '../../core/images'
 import { tracked } from '../../core/saveStatus'
 import { useEntities } from '../../core/useEntities'
 import { Layer, MapDoc, Pt, Shape, newLayers } from './model'
+import { alertDialog, confirmDialog, promptDialog } from '../../core/dialog'
+import { Info } from '../../core/Info'
 
 type Tool = 'pan' | 'pen' | 'route' | 'area' | 'marker' | 'erase'
 const TOOLS: [Tool, string, string][] = [
@@ -17,6 +19,20 @@ const TOOLS: [Tool, string, string][] = [
   ['marker', 'Segnaposto', 'Clic dove metterlo'],
   ['erase', 'Gomma', 'Clic su una forma per cancellarla'],
 ]
+function MapsHelp() {
+  return (
+    <>
+      <p>Disegna sopra la tua immagine: le forme sono vettoriali (restano nitide a ogni zoom) e stanno in <b>livelli</b> che puoi mostrare, nascondere ed eliminare.</p>
+      <ul className="list-disc space-y-1 pl-5">
+        {TOOLS.map(([t, l, h]) => <li key={t}><b>{l}</b>: {h}.</li>)}
+        <li><b>Livelli</b>: si disegna sul livello attivo (✎). Usa «Livelli» per aggiungerne, rinominarli o cambiare colore.</li>
+        <li><b>Loop orizzontale</b>: per mappe del mondo che si ripetono ai lati; le rotte attraversano il bordo senza salti.</li>
+        <li><b>↶ ↷</b> annullano e ripetono (Ctrl+Z, Ctrl+Maiusc+Z). <b>Adatta</b> riporta la mappa tutta in vista.</li>
+      </ul>
+    </>
+  )
+}
+
 interface Draft { type: 'route' | 'area' | 'pen'; pts: Pt[] }
 
 // Forme in SVG sopra l'immagine (invece di un canvas): selezione e cancellazione sono immediate e il tratto resta nitido a ogni zoom.
@@ -123,7 +139,7 @@ function MapView({ m, src, update, onDelete }: { m: MapDoc; src: string | null; 
     const p = toWorld(e)
     if (tool === 'pen') { setDraft({ type: 'pen', pts: [norm(p)] }); e.currentTarget.setPointerCapture(e.pointerId) }
     else if (tool === 'route' || tool === 'area') setDraft(d => (d && d.type === tool ? { ...d, pts: [...d.pts, norm(p, d.pts[d.pts.length - 1])] } : { type: tool, pts: [norm(p)] }))
-    else if (tool === 'marker') { const label = prompt('Nome del segnaposto'); if (label !== null) addShape({ type: 'marker', pts: [norm(p)], label }) }
+    else if (tool === 'marker') { const pt = norm(p); promptDialog('Nome del segnaposto').then(label => { if (label !== null) addShape({ type: 'marker', pts: [pt], label }) }) }
   }
   const move = (e: RPE<SVGSVGElement>) => {
     const dg = drag.current
@@ -183,7 +199,7 @@ function MapView({ m, src, update, onDelete }: { m: MapDoc; src: string | null; 
       <div className="flex flex-wrap items-center gap-1 border-b border-line bg-panel px-3 py-1.5">
         <input className="field w-48 font-display" value={m.name} onChange={e => update({ ...m, name: e.target.value })} aria-label="Nome della mappa" />
         {TOOLS.map(([t, l]) => <button key={t} className={`btn ${tool === t ? 'border-brass bg-brass text-ink' : ''}`} aria-pressed={tool === t} onClick={() => { setTool(t); setDraft(null); setCursor(null) }}>{l}</button>)}
-        <span className="ml-2 hidden text-xs opacity-60 xl:inline">{TOOLS.find(t => t[0] === tool)![2]}</span>
+        <Info title="Come si usano le mappe"><MapsHelp /></Info>
         <span className="ml-auto flex items-center gap-2">
           <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={m.loop} onChange={e => { update({ ...m, loop: e.target.checked }); setTimeout(fit, 0) }} />Loop orizzontale</label>
           <button className="btn disabled:opacity-40" disabled={!past.current.length} onClick={undo} title="Annulla (Ctrl+Z)">↶</button>
@@ -193,6 +209,7 @@ function MapView({ m, src, update, onDelete }: { m: MapDoc; src: string | null; 
           <button className="btn" onClick={onDelete}>Elimina mappa</button>
         </span>
       </div>
+      <p role="status" className="border-b border-line bg-raised px-3 py-1 text-sm"><b className="text-brass">{TOOLS.find(t => t[0] === tool)![1]}:</b> {TOOLS.find(t => t[0] === tool)![2]}</p>
       <div className="flex min-h-0 flex-1">
         <div ref={box} className="relative min-w-0 flex-1 overflow-hidden bg-ink">
           <svg ref={svg} className={`h-full w-full touch-none ${tool === 'pan' ? 'cursor-grab' : 'cursor-crosshair'}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onDoubleClick={finish}>
@@ -217,7 +234,7 @@ function MapView({ m, src, update, onDelete }: { m: MapDoc; src: string | null; 
                 <input type="color" className="h-7 w-7 shrink-0 cursor-pointer border-0 bg-transparent p-0" value={l.color} aria-label={`Colore di ${l.name}`} onChange={e => patchLayer(l.id, { color: e.target.value })} />
                 <input className="field min-w-0 px-1" value={l.name} aria-label="Nome del livello" onChange={e => patchLayer(l.id, { name: e.target.value })} />
                 <button className={`btn px-1.5 py-0 ${l.id === activeId ? 'border-brass bg-brass text-ink' : ''}`} title="Livello attivo: qui si disegna" aria-pressed={l.id === activeId} onClick={() => update({ ...m, active: l.id })}>✎</button>
-                <button className="btn px-1.5 py-0" title="Elimina il livello" onClick={() => confirm(`Eliminare il livello «${l.name}» e le sue forme?`) && setLayers(ls => ls.filter(x => x.id !== l.id))}>✕</button>
+                <button className="btn px-1.5 py-0" title="Elimina il livello" onClick={async () => { if (await confirmDialog(`Eliminare il livello «${l.name}» e le sue forme?`, { danger: true })) setLayers(ls => ls.filter(x => x.id !== l.id)) }}>✕</button>
               </li>
             ))}</ul>
             <button className="btn w-full" onClick={() => { const id = nid(); commit({ ...m, active: id, layers: [...m.layers, { id, name: 'Nuovo livello', color: '#9b8cff', visible: true, shapes: [] }] }) }}>+ Livello</button>
@@ -261,10 +278,10 @@ export function MapsPage() {
       const bmp = await createImageBitmap(f); const w = bmp.width, h = bmp.height; bmp.close()
       const image = await saveImage(cid, f) // le mappe restano all'originale, senza riduzioni
       setSel((await create({ name: f.name.replace(/\.[^.]+$/, ''), w, h, loop: false, layers: newLayers(), active: '', image })).id)
-    } catch (e) { alert(`Impossibile importare l'immagine: ${(e as Error).message}. Nel salvataggio del browser le immagini grandi non entrano: usa «Usa una cartella sul disco».`) }
+    } catch (e) { alertDialog(`Impossibile importare l'immagine: ${(e as Error).message}. Nel salvataggio del browser le immagini grandi non entrano: usa «Usa una cartella sul disco».`) }
   }
   const del = async () => {
-    if (!m || !confirm(`Eliminare la mappa «${m.name}»?`)) return
+    if (!m || !(await confirmDialog(`Eliminare la mappa «${m.name}»?`, { danger: true }))) return
     if (m.image) await removeImage(cid, m.image).catch(() => {})
     await store().remove(`${cid}/maps/${m.id}.img`)
     await remove(m.id); setSel(null)

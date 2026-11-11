@@ -6,6 +6,7 @@ import { SidePanel } from '../../core/SidePanel'
 import { Entity, Kind } from '../../core/repo'
 import { KindDef, SheetView } from '../../core/SheetView'
 import { useEntities } from '../../core/useEntities'
+import { alertDialog, confirmDialog } from '../../core/dialog'
 
 export interface Maker<T> { label: string; make: (items: T[]) => Omit<T, keyof Entity> & { name: string } }
 
@@ -32,7 +33,7 @@ export function EntityPage<T extends Entity>({ kind, noun, makers, sheet, group,
   const exportOne = async () => {
     if (!cur) return
     try { download(`${safe(cur.name)}.json`, JSON.stringify({ format: 'dnd-manage-entity', kind, data: cur, images: await bundleImages(cid, imageNames(cur)) }, null, 2)) }
-    catch (e) { alert(`Esportazione non riuscita: ${(e as Error).message}`) }
+    catch (e) { alertDialog(`Esportazione non riuscita: ${(e as Error).message}`) }
   }
   const importOne = async (f: File) => {
     try {
@@ -43,7 +44,7 @@ export function EntityPage<T extends Entity>({ kind, noun, makers, sheet, group,
       if (Array.isArray(rest.immagini)) rest.immagini = rest.immagini.filter((i: any) => map[i.src]).map((i: any) => ({ ...i, src: map[i.src] }))
       if (typeof rest.ritratto === 'string') rest.ritratto = map[rest.ritratto] ?? ''
       setSel((await create(rest)).id)
-    } catch (e) { alert(e instanceof SyntaxError ? 'Il file non è un JSON valido.' : (e as Error).message) }
+    } catch (e) { alertDialog(e instanceof SyntaxError ? 'Il file non è un JSON valido.' : (e as Error).message) }
   }
 
   return (
@@ -71,7 +72,7 @@ export function EntityPage<T extends Entity>({ kind, noun, makers, sheet, group,
             <div className="mb-3 flex items-center gap-2">
               {extra?.(cur)}
               <button className="btn ml-auto" title="Scarica questa scheda come file JSON" onClick={exportOne}>Esporta</button>
-              <button className="btn" onClick={() => confirm(`Eliminare «${cur.name}»?`) && (imageNames(cur).filter(n => !items.some(x => x.id !== cur.id && imageNames(x).includes(n))).forEach(n => removeImage(cid, n).catch(() => {})), remove(cur.id), setSel(null))}>Elimina</button>
+              <button className="btn" onClick={async () => { if (await confirmDialog(`Eliminare «${cur.name}»?`, { danger: true })) { imageNames(cur).filter(n => !items.some(x => x.id !== cur.id && imageNames(x).includes(n))).forEach(n => removeImage(cid, n).catch(() => {})); remove(cur.id); setSel(null) } }}>Elimina</button>
             </div>
             <SheetView layoutKey={sh.layoutKey} kind={sh.def} data={cur} onChange={update} />
           </>

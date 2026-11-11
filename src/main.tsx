@@ -14,9 +14,10 @@ import { CombatPage } from './features/combat/CombatPage'
 import { SessionsPage } from './features/sessions/SessionsPage'
 import { RelationsPage } from './features/relations/RelationsPage'
 import { ManualsPage } from './features/manuals/ManualsPage'
+import { DialogHost } from './core/dialog'
 
 createRoot(document.getElementById('root')!).render(
-  <React.StrictMode><StorageGate><BrowserRouter><Routes>
+  <React.StrictMode><DialogHost /><StorageGate><BrowserRouter><Routes>
     <Route path="/" element={<CampaignsPage />} />
     <Route path="/c/:cid" element={<CampaignLayout />}>
       <Route index element={<Navigate to="schede" replace />} />

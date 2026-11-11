@@ -40,7 +40,7 @@ export interface Character extends Entity {
   dadiVita: { tipo: string; totali: number; usati: number }
   tiriMorte: { successi: number; fallimenti: number }
   incantesimi: { car: string }
-  slot: Record<string, { max: number; usati: number }>
+  slot: Record<string, { max: number; usati: number; liv?: number }> // chiavi "1"…"9" e "patto" (Magia del Patto: liv = livello degli slot)
   monete: Record<keyof typeof COINS, number>
   note: string
   extra: Record<string, unknown> // campi personalizzati creati dal layout

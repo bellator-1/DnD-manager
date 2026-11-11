@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePersisted } from '../../core/SidePanel'
 import { roll, RollResult } from './roll'
+import { promptDialog } from '../../core/dialog'
+import { NumInput } from '../../core/NumInput'
 
 // Qualsiasi componente può lanciare: rollEvent('1d20+3', 'Percezione'). Se il pannello è chiuso compare un avviso con il risultato.
 export const rollEvent = (expr: string, label?: string) => window.dispatchEvent(new CustomEvent('roll', { detail: { expr, label } }))
@@ -72,7 +74,7 @@ export function DiceMenu() {
 
   const add = (f: number, d: number) => setPool(p => ({ ...p, [f]: Math.min(100, Math.max(0, (p[f] ?? 0) + d)) }))
   const built = poolExpr(pool, mode, mod)
-  const save = () => { const e = built || expr.trim(); const name = e && prompt('Nome del tiro (es. Palla di fuoco)'); if (name) patch({ presets: [...ui.presets, { name, expr: e }] }) }
+  const save = async () => { const e = built || expr.trim(); const name = e && await promptDialog('Nome del tiro (es. Palla di fuoco)'); if (name) patch({ presets: [...ui.presets, { name, expr: e }] }) }
 
   return (
     <>
@@ -91,7 +93,7 @@ export function DiceMenu() {
               {DICE.map(f => (
                 <div key={f} className="min-w-0 rounded border border-line p-2 text-center">
                   <button className="w-full font-display text-xl text-brass" onClick={() => add(f, 1)} title={`Aggiungi un d${f}`}>d{f}</button>
-                  <input className="field mt-1 px-1 text-center" type="number" min={0} max={100} value={pool[f] ?? 0} aria-label={`Quanti d${f}`} onChange={e => setPool(p => ({ ...p, [f]: Math.min(100, Math.max(0, +e.target.value || 0)) }))} />
+                  <NumInput className="field mt-1 px-1 text-center" min={0} max={100} value={pool[f] ?? 0} aria-label={`Quanti d${f}`} onCommit={n => setPool(p => ({ ...p, [f]: Math.min(100, Math.max(0, n)) }))} />
                   <div className="mt-1 grid grid-cols-2 gap-1">
                     <button className="btn px-0 py-0" onClick={() => add(f, -1)} aria-label={`Togli un d${f}`}>−</button>
                     <button className="btn px-0 py-0" onClick={() => add(f, 1)} aria-label={`Aggiungi un d${f}`}>+</button>
@@ -108,7 +110,7 @@ export function DiceMenu() {
               </div>
               <label className="flex items-center gap-1">Modificatore
                 <button className="btn px-2 py-0" onClick={() => setMod(v => v - 1)} aria-label="Diminuisci">−</button>
-                <input className="field w-16 text-center" type="number" value={mod} onChange={e => setMod(+e.target.value || 0)} />
+                <NumInput className="field w-16 text-center" value={mod} aria-label="Modificatore" onCommit={n => setMod(n)} />
                 <button className="btn px-2 py-0" onClick={() => setMod(v => v + 1)} aria-label="Aumenta">+</button>
               </label>
               <button className="btn ml-auto" onClick={() => { setPool({}); setMode('n'); setMod(0) }}>Azzera</button>

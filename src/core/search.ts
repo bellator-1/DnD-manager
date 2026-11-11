@@ -53,3 +53,26 @@ export function findInPages(pages: string[], q: string, limit = 60): { page: num
   }
   return out
 }
+
+// Intervalli [inizio, fine) del testo originale che corrispondono ai termini (senza distinguere maiuscole e accenti).
+// Serve a evidenziare la ricerca sulla pagina del PDF. Ogni carattere si normalizza da solo, così gli indici restano quelli del testo originale.
+export function highlightRanges(text: string, toks: string[]): [number, number][] {
+  if (!text || !toks.length) return []
+  let n = ''
+  const map: number[] = [] // map[i] = posizione, nel testo originale, del carattere normalizzato i
+  for (let i = 0; i < text.length; i++) { const p = norm(text[i]); for (let k = 0; k < p.length; k++) { n += p[k]; map.push(i) } }
+  const raw: [number, number][] = []
+  for (const t of toks) {
+    if (!t) continue
+    for (let from = 0; ;) {
+      const j = n.indexOf(t, from)
+      if (j < 0) break
+      raw.push([map[j], map[j + t.length - 1] + 1])
+      from = j + t.length
+    }
+  }
+  raw.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  const out: [number, number][] = []
+  for (const r of raw) { const l = out[out.length - 1]; if (l && r[0] <= l[1]) l[1] = Math.max(l[1], r[1]); else out.push([r[0], r[1]]) }
+  return out
+}

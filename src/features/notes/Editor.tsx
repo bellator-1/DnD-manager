@@ -15,6 +15,7 @@ import { saveImage } from '../../core/images'
 import { AssetImage, parseImg, setImageCampaign, stringifyImg } from './ImageNode'
 import { Indent, IndentParagraph } from './indent'
 import { LinkTarget, WikiSuggest, setLinkSource } from './wikilink'
+import { alertDialog } from '../../core/dialog'
 
 // Le rientranze (U+2003) si salvano come entità: il lettore markdown altrimenti le elimina a inizio paragrafo (come in Lorekeeper).
 const toFile = (md: string) => md.replace(/^((?:> ?)*)(\u2003+)/gm, (_m, q, s) => q + '&emsp;'.repeat(s.length))
@@ -38,7 +39,7 @@ export default function Editor({ id, body, onChange, onOpen, targets }: {
       try {
         const name = await saveImage(cid, f, 1600)
         ref.current?.chain().focus().insertContent([{ type: 'image', attrs: { src: 'img:' + name, title: 'align=center;w=60' } }, { type: 'paragraph' }]).run()
-      } catch (e) { alert(`Impossibile salvare l'immagine: ${(e as Error).message}`) }
+      } catch (e) { alertDialog(`Impossibile salvare l'immagine: ${(e as Error).message}`) }
     }
   }
 

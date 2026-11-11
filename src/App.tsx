@@ -11,6 +11,7 @@ import { chooseFolder, folderName, store } from './core/storage'
 import { ThemeToggle } from './core/Theme'
 import { DiceMenu } from './features/dice/DiceMenu'
 import { SearchPalette } from './features/search/SearchPalette'
+import { alertDialog, confirmDialog } from './core/dialog'
 
 export function CampaignsPage() {
   const [list, setList] = useState<Campaign[]>([])
@@ -26,23 +27,23 @@ export function CampaignsPage() {
     if (!name.trim()) return
     await tracked(repo.saveCampaigns([...list, { id: crypto.randomUUID(), name: name.trim() }])); setName(''); load()
   }
-  const importFile = async (f: File) => { try { await importCampaign(f); load() } catch (e) { alert((e as Error).message) } }
+  const importFile = async (f: File) => { try { await importCampaign(f); load() } catch (e) { alertDialog((e as Error).message) } }
   const migrate = async () => {
     try {
       const r = await migrateFromBrowser(store())
       await load()
-      if (confirm(`Copiati ${r.copied} file${r.skipped ? ` (${r.skipped} già presenti nella cartella)` : ''}. Vuoi cancellare ora i dati dal browser?\nConsiglio: rispondi No finché non hai verificato che le campagne compaiano qui sotto.`)) clearBrowserData()
+      if (await confirmDialog(`Copiati ${r.copied} file${r.skipped ? ` (${r.skipped} già presenti nella cartella)` : ''}. Vuoi cancellare ora i dati dal browser?\nConsiglio: rispondi No finché non hai verificato che le campagne compaiano qui sotto.`, { title: 'Migrazione completata', danger: true, ok: 'Cancella dal browser' })) clearBrowserData()
       setLegacy(browserEntryCount())
-    } catch (e) { alert(`Migrazione non riuscita: ${(e as Error).message}`) }
+    } catch (e) { alertDialog(`Migrazione non riuscita: ${(e as Error).message}`) }
   }
   const cleanImages = async (c: Campaign) => {
-    if (savingNow()) { alert('Ci sono salvataggi in corso: riprova tra un momento.'); return }
+    if (savingNow()) { alertDialog('Ci sono salvataggi in corso: riprova tra un momento.'); return }
     try {
       const { orphans, bytes } = await scanOrphanImages(c.id)
-      if (!orphans.length) { alert('Nessuna immagine inutilizzata.'); return }
-      if (!confirm(`Trovate ${orphans.length} immagini inutilizzate (${fmtSize(bytes)}). Eliminarle definitivamente?\nConsiglio: scarica prima un backup.`)) return
+      if (!orphans.length) { alertDialog('Nessuna immagine inutilizzata.', 'Pulizia delle immagini'); return }
+      if (!(await confirmDialog(`Trovate ${orphans.length} immagini inutilizzate (${fmtSize(bytes)}). Eliminarle definitivamente?\nConsiglio: scarica prima un backup.`, { danger: true }))) return
       for (const n of orphans) await removeImage(c.id, n)
-    } catch (e) { alert(`Pulizia non riuscita: ${(e as Error).message}`) }
+    } catch (e) { alertDialog(`Pulizia non riuscita: ${(e as Error).message}`) }
   }
   const close = () => { setDel(null); setTyped('') }
   const confirmDelete = async () => {
@@ -62,7 +63,7 @@ export function CampaignsPage() {
           <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted">Cartella dei dati</span>
             <b className="rounded-md border border-edge px-2 py-1">{folderName()}</b>
-            <button className="btn" title="Scegli un'altra cartella per i dati" onClick={async () => { try { await chooseFolder(); await load() } catch (e) { if ((e as Error).name !== 'AbortError') alert((e as Error).message) } }}>Cambia</button>
+            <button className="btn" title="Scegli un'altra cartella per i dati" onClick={async () => { try { await chooseFolder(); await load() } catch (e) { if ((e as Error).name !== 'AbortError') alertDialog((e as Error).message) } }}>Cambia</button>
             <ThemeToggle />
           </div>
         </header>
@@ -89,7 +90,7 @@ export function CampaignsPage() {
                   <details className="relative">
                     <summary className="btn cursor-pointer list-none" aria-label={`Altre azioni per ${c.name}`}>⋯</summary>
                     <div className="absolute right-0 z-10 mt-1 w-60 rounded-lg border border-edge bg-panel p-1 shadow-xl shadow-black/40">
-                      <button className="menu-item" onClick={e => act(e, () => exportCampaign(c).catch(err => alert((err as Error).message)))}>Scarica un backup (JSON)</button>
+                      <button className="menu-item" onClick={e => act(e, () => exportCampaign(c).catch(err => alertDialog((err as Error).message)))}>Scarica un backup (JSON)</button>
                       <button className="menu-item" onClick={e => act(e, () => cleanImages(c))}>Elimina le immagini inutilizzate</button>
                       <button className="menu-item text-danger" onClick={e => act(e, () => setDel(c))}>Elimina la campagna…</button>
                     </div>

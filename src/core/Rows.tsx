@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { rollEvent } from '../features/dice/DiceMenu'
+import { NumInput } from './NumInput'
 import { getPath } from './path'
 import { Kind, repo } from './repo'
 import type { BlockDef, Setter } from './SheetView'
@@ -30,7 +31,7 @@ function RowsView({ c, set, path, cols, noun, link }: { c: any; set: Setter; pat
             <div key={i} className="rounded border border-line p-1.5">
               <div className="flex items-center gap-2">
                 {e ? <button className="font-display text-brass hover:underline" title="Apri la pagina" onClick={() => nav(`/c/${cid}/${ROUTE[link.kind]}?sel=${e.id}`)}>{e.name}</button> : <span className="opacity-60">(elemento non trovato)</span>}
-                {link.qty && <input className="field ml-auto w-16 px-1 text-center" type="number" min={0} aria-label="Quantità" value={r.qta ?? 1} onChange={ev => patch(i, { qta: +ev.target.value || 0 })} />}
+                {link.qty && <NumInput className="field ml-auto w-16 px-1 text-center" min={0} aria-label="Quantità" value={r.qta ?? 1} onCommit={n => patch(i, { qta: n })} />}
                 <button className={`btn px-1 py-0 ${link.qty ? '' : 'ml-auto'}`} title="Rimuovi dall'elenco" aria-label="Rimuovi dall'elenco" onClick={() => put(rows.filter((_, k) => k !== i))}>✕</button>
               </div>
               {e && <div className="mt-1 text-xs opacity-80">{link.summary(e)}</div>}
@@ -41,8 +42,9 @@ function RowsView({ c, set, path, cols, noun, link }: { c: any; set: Setter; pat
           <div key={i} className="flex items-center gap-1">
             {cols.map(col => (
               <span key={col.key} className="flex min-w-0 items-center gap-0.5" style={{ flex: col.w ?? '1' }}>
-                <input className="field min-w-0 px-1" type={col.num ? 'number' : 'text'} placeholder={col.label} aria-label={col.label} value={r[col.key] ?? ''}
-                  onChange={e => patch(i, { [col.key]: col.num ? +e.target.value : e.target.value })} />
+                {col.num
+                  ? <NumInput className="field min-w-0 px-1" placeholder={col.label} aria-label={col.label} value={r[col.key] === '' ? undefined : r[col.key]} onCommit={n => patch(i, { [col.key]: n })} />
+                  : <input className="field min-w-0 px-1" type="text" placeholder={col.label} aria-label={col.label} value={r[col.key] ?? ''} onChange={e => patch(i, { [col.key]: e.target.value })} />}
                 {col.roll && <button className="btn px-1 py-0" title="Tira" onClick={() => rollEvent(expr(col.roll!, r[col.key]), r.nome)}>⚄</button>}
               </span>
             ))}

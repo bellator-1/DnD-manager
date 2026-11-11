@@ -13,7 +13,10 @@ export function kit(prefix: string, fields: FieldDef[]) {
   const sub = (title: string, cols: number, children: Node[]): Node => ({ id: id(), type: 'group', title, cols, children })
   // Sezione di primo livello: x, y, larghezza su 12 colonne; l'altezza si adatta da sola al contenuto.
   const grp = (title: string, cols: number, children: Node[], x: number, y: number, w: number): Root => ({ ...sub(title, cols, children), x, y, w, h: 6, auto: true })
-  return { fld, blk, sub, grp }
+  // Riserva n id senza creare nodi. Serve quando un layout di default cambia il numero di elementi: i dati di alcuni blocchi (es. i collegamenti)
+  // sono legati all'id del blocco, quindi gli id dei blocchi successivi non devono spostarsi.
+  const skip = (n: number) => { k += n }
+  return { fld, blk, sub, grp, skip }
 }
 
 // Scorciatoie per definire il catalogo dei campi di un tipo di scheda.

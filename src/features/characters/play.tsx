@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { CONDITIONS } from '../../core/conditions'
 import type { Cfg } from '../../core/layouts'
+import { NumInput } from '../../core/NumInput'
 import type { BlockDef, Setter } from '../../core/SheetView'
 import { roll } from '../dice/roll'
 import { Character, mod } from './model'
 
 type P = { c: Character; set: Setter; cfg: Cfg; patch: (f: (d: any) => any) => void }
-const num = (v: string) => (Number.isFinite(+v) ? +v : 0)
 
 // «Modalità gioco»: azioni rapide, tutte facoltative. Ogni valore resta modificabile a mano e nulla scatta da solo.
 
@@ -33,17 +33,17 @@ const PlayHp = ({ c, set, patch }: P) => {
   return (
     <div className="space-y-2">
       <div className="flex items-baseline gap-2">
-        <input className="field w-20 px-1 text-center font-display text-3xl" type="number" value={pf.attuali} aria-label="PF attuali" onChange={e => set('pf.attuali', num(e.target.value))} />
+        <NumInput className="field w-20 px-1 text-center font-display text-3xl" value={pf.attuali} aria-label="PF attuali" onCommit={n => set('pf.attuali', n)} />
         <span className="text-xl opacity-60">/</span>
-        <input className="field w-16 px-1 text-center text-lg" type="number" value={pf.max} aria-label="PF massimi" onChange={e => set('pf.max', num(e.target.value))} />
-        <label className="ml-auto flex items-center gap-1 text-xs opacity-80">Temp.<input className="field w-14 px-1 text-center" type="number" value={pf.temp ?? 0} onChange={e => set('pf.temp', num(e.target.value))} /></label>
+        <NumInput className="field w-16 px-1 text-center text-lg" value={pf.max} aria-label="PF massimi" onCommit={n => set('pf.max', n)} />
+        <label className="ml-auto flex items-center gap-1 text-xs opacity-80">Temp.<NumInput className="field w-14 px-1 text-center" value={pf.temp ?? 0} aria-label="PF temporanei" onCommit={n => set('pf.temp', n)} /></label>
       </div>
       <div className="h-2 overflow-hidden rounded bg-ink" role="img" aria-label={`PF ${pf.attuali} su ${pf.max}`}>
         <div className={`h-full ${ratio > 0.5 ? 'bg-green-600' : ratio > 0.25 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${ratio * 100}%` }} />
       </div>
       <div className="flex items-center gap-1">
         <button className="btn grow" onClick={() => hit(-amount)}>− Danni</button>
-        <input className="field w-16 px-1 text-center" type="number" min={1} value={amount} aria-label="Quantità" onChange={e => setAmount(Math.max(1, num(e.target.value)))} />
+        <NumInput className="field w-16 px-1 text-center" min={1} value={amount} aria-label="Quantità" onCommit={n => setAmount(Math.max(1, n))} />
         <button className="btn grow" onClick={() => hit(amount)}>+ Cure</button>
       </div>
       {pf.attuali === 0 && <div className="space-y-1 rounded border border-line p-2"><div className="text-xs text-danger">A 0 PF: tiri contro morte</div>{saves('successi')}{saves('fallimenti')}</div>}
@@ -88,6 +88,7 @@ const Rest = ({ c, patch }: P) => {
         <div className="space-y-1 rounded border border-line p-2">
           <div>Dadi vita disponibili: <b>{Math.max(0, dv.totali - dv.usati)}</b> / {dv.totali} ({dv.tipo})</div>
           <button className="btn" onClick={spend}>Spendi un dado vita</button>
+          {(c.slot?.patto?.max ?? 0) > 0 && <button className="btn ml-1" onClick={() => { patch(x => ({ ...x, slot: { ...x.slot, patto: { ...x.slot?.patto, usati: 0 } } })); setMsg('Slot del Patto ripristinati.') }}>Ripristina gli slot del Patto</button>}
           <p className="text-xs opacity-60">Il resto (capacità a ricarica breve, ecc.) lo gestisci a mano.</p>
         </div>
       )}

@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Cfg } from '../../core/layouts'
+import { NumInput } from '../../core/NumInput'
 import { kit } from '../../core/layoutKit'
 import { rowsBlock } from '../../core/Rows'
 import { itemSummary } from '../items/summary'
@@ -11,7 +13,6 @@ import { rollEvent } from '../dice/DiceMenu'
 import { ABILITIES, ABILITY_LABEL, Ability, Character, FIELDS, Prof, SKILLS, bonusAbilita, bonusCompetenza, fmt, mod } from './model'
 
 type P = { c: Character; set: Setter; cfg: Cfg }
-const num = (v: string) => (Number.isFinite(+v) ? +v : 0)
 const profOf = (c: Character, key: string) => (c.competenze?.[key] ?? 0) as Prof
 
 function SkillList({ c, set, list }: { c: Character; set: Setter; list: typeof SKILLS }) {
@@ -22,7 +23,7 @@ function SkillList({ c, set, list }: { c: Character; set: Setter; list: typeof S
         return (
           <li key={s.key} className="flex items-center gap-2">
             <button className="w-5 text-brass" title="Cambia competenza" onClick={() => set('competenze.' + s.key, (p + 1) % 3)}>{['○', '●', '◆'][p]}</button>
-            <button className="w-8 text-right" title="Tira" onClick={() => rollEvent(`1d20${fmt(b)}`, s.label)}>{fmt(b)}</button>
+            <button className="w-10 shrink-0 rounded border border-transparent px-1 text-right hover:border-brass hover:text-brass" title={`Tira ${s.label} (1d20${fmt(b)})`} aria-label={`Tira ${s.label} ${fmt(b)}`} onClick={() => rollEvent(`1d20${fmt(b)}`, s.label)}>{fmt(b)}</button>
             <span>{s.label}</span>
           </li>
         )
@@ -42,7 +43,7 @@ export const AbilityBlock = ({ c, set, cfg }: P) => {
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-display">{ABILITY_LABEL[a]}</div>
-          <input className="field mt-1 text-center" type="number" value={c.abilita[a]} onChange={e => set('abilita.' + a, num(e.target.value))} aria-label={ABILITY_LABEL[a]} />
+          <NumInput className="field mt-1 text-center" value={c.abilita[a]} onCommit={n => set('abilita.' + a, n)} aria-label={ABILITY_LABEL[a]} />
         </div>
       </div>
       {cfg.save && (
@@ -58,15 +59,55 @@ export const AbilityBlock = ({ c, set, cfg }: P) => {
 
 const SkillsBlock = ({ c, set, cfg }: P) => <SkillList c={c} set={set} list={cfg.ability ? SKILLS.filter(s => s.ab === cfg.ability) : SKILLS} />
 
-export const HpBlock = ({ c, set }: P) => (
-  <div className="grid grid-cols-3 gap-2 text-center">
-    {([['attuali', 'Attuali'], ['max', 'Massimi'], ['temp', 'Temporanei']] as const).map(([k, l]) => (
-      <label key={k} className="text-sm">{l}
-        <input className="field text-center text-xl" type="number" value={c.pf?.[k] ?? 0} onChange={e => set('pf.' + k, num(e.target.value))} />
-      </label>
-    ))}
+export const HpBlock = ({ c, set }: P) => {
+  const pf = c.pf ?? { max: 1, attuali: 1, temp: 0 }
+  const ratio = pf.max > 0 ? Math.max(0, Math.min(1, pf.attuali / pf.max)) : 0
+  return (
+    <div className="space-y-2">
+      <div className="h-2.5 overflow-hidden rounded-full bg-ink" role="img" aria-label={`PF ${pf.attuali} su ${pf.max}`}>
+        <div className={`h-full rounded-full transition-all ${ratio > 0.5 ? 'bg-good' : ratio > 0.25 ? 'bg-brass' : 'bg-danger'}`} style={{ width: `${ratio * 100}%` }} />
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {([['attuali', 'Attuali'], ['max', 'Massimi'], ['temp', 'Temporanei']] as const).map(([k, l]) => (
+          <label key={k} className="text-xs text-muted">{l}
+            <NumInput className="field mt-0.5 text-center font-display text-xl text-paper" value={pf[k] ?? 0} onCommit={n => set('pf.' + k, n)} />
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Intestazione: il nome in grande e i dati principali in una riga compatta. Stessi dati dei campi, cambia solo la presentazione.
+const IdentityBlock = ({ c, set }: P) => (
+  <div className="space-y-3">
+    <input className="field min-h-12 rounded-none border-0 border-b border-edge bg-transparent px-0 font-display text-3xl text-brass placeholder:text-muted focus-visible:border-brass" placeholder="Nome del personaggio" aria-label="Nome" value={c.name ?? ''} onChange={e => set('name', e.target.value)} />
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      {([['classe', 'Classe'], ['sottoclasse', 'Sottoclasse'], ['specie', 'Specie'], ['background', 'Background']] as const).map(([k, l]) => (
+        <label key={k} className="block text-xs text-muted">{l}<input className="field mt-0.5 text-paper" value={(c[k] as string) ?? ''} onChange={e => set(k, e.target.value)} /></label>
+      ))}
+      <label className="block text-xs text-muted">Livello<NumInput className="field mt-0.5 text-center text-paper" value={c.livello} onCommit={n => set('livello', n)} /></label>
+      <label className="block text-xs text-muted">Punti Esperienza<NumInput className="field mt-0.5 text-center text-paper" value={c.pe} onCommit={n => set('pe', n)} /></label>
+    </div>
   </div>
 )
+
+// Valori di combattimento in evidenza: CA, Iniziativa (clic per tirare), Velocità.
+const Tile = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="flex flex-col items-center justify-center rounded-lg border border-line bg-ink/40 px-2 py-2 text-center">
+    <div className="text-[0.7rem] uppercase tracking-wide text-muted">{label}</div>{children}
+  </div>
+)
+const VitalsBlock = ({ c, set }: P) => {
+  const ini = mod(c.abilita?.des ?? 10)
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <Tile label="Classe Armatura"><NumInput className="field mt-1 min-h-10 border-0 bg-transparent px-0 text-center font-display text-3xl" value={c.ca} onCommit={n => set('ca', n)} aria-label="Classe Armatura" /></Tile>
+      <Tile label="Iniziativa"><button className="mt-1 min-h-10 font-display text-3xl text-brass hover:underline" title={`Tira l'iniziativa (1d20${fmt(ini)})`} aria-label={`Tira l'iniziativa ${fmt(ini)}`} onClick={() => rollEvent(`1d20${fmt(ini)}`, 'Iniziativa')}>{fmt(ini)}</button></Tile>
+      <Tile label="Velocità (m)"><NumInput className="field mt-1 min-h-10 border-0 bg-transparent px-0 text-center font-display text-3xl" value={c.velocita} onCommit={n => set('velocita', n)} aria-label="Velocità in metri" /></Tile>
+    </div>
+  )
+}
 
 const DerivedBlock = ({ c }: P) => {
   const bc = bonusCompetenza(c.livello), car = c.incantesimi?.car as Ability | ''
@@ -83,18 +124,54 @@ const DerivedBlock = ({ c }: P) => {
   ))}</ul>
 }
 
-const SlotsBlock = ({ c, set }: P) => (
-  <div className="grid grid-cols-3 gap-2 text-xs">
-    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => (
-      <div key={l}>Livello {l}
-        <div className="flex items-center gap-1">
-          <input className="field px-1 text-center" type="number" min={0} title="Usati" value={c.slot?.[l]?.usati ?? 0} onChange={e => set(`slot.${l}.usati`, num(e.target.value))} />/
-          <input className="field px-1 text-center" type="number" min={0} title="Totali" value={c.slot?.[l]?.max ?? 0} onChange={e => set(`slot.${l}.max`, num(e.target.value))} />
+// Slot incantesimo. Tre modi: tutti i livelli; solo quelli con slot (per non avere una tabella di zeri); Magia del Patto (un solo livello, pochi slot).
+type SlotMode = 'all' | 'active' | 'pact'
+const SlotsBlock = ({ c, set, cfg }: P) => {
+  const mode = (cfg.mode ?? 'all') as SlotMode
+  const [showAll, setShowAll] = useState(false)
+  if (mode === 'pact') {
+    const p = c.slot?.patto ?? { max: 0, usati: 0, liv: 1 }
+    const max = Math.max(0, p.max ?? 0), used = Math.min(max, Math.max(0, p.usati ?? 0)), free = max - used
+    return (
+      <div className="space-y-2 text-sm">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs text-muted">Livello degli slot<NumInput className="field mt-0.5 w-24 text-center text-paper" min={1} max={9} value={p.liv ?? 1} onCommit={n => set('slot.patto.liv', n)} /></label>
+          <label className="text-xs text-muted">Slot totali<NumInput className="field mt-0.5 w-24 text-center text-paper" min={0} max={12} value={max} onCommit={n => set('slot.patto.max', n)} /></label>
         </div>
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Slot del Patto">
+          {Array.from({ length: Math.min(max, 12) }, (_, i) => (
+            <button key={i} className={`h-7 w-7 rounded-full border-2 transition-colors ${i < free ? 'border-brass bg-brass' : 'border-edge hover:border-brass'}`} aria-pressed={i < free}
+              aria-label={`Slot ${i + 1}: ${i < free ? 'disponibile, clic per usarlo' : 'usato, clic per recuperarlo'}`}
+              onClick={() => set('slot.patto.usati', Math.min(max, Math.max(0, i < free ? used + 1 : used - 1)))} />
+          ))}
+          {!max && <span className="text-muted">Imposta quanti slot ha il Patto.</span>}
+        </div>
+        {max > 0 && <p className="text-xs text-muted">{free} di {max} disponibili · livello {p.liv ?? 1}</p>}
       </div>
-    ))}
-  </div>
-)
+    )
+  }
+  const levels = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(l => mode === 'all' || showAll || (c.slot?.[l]?.max ?? 0) > 0)
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        {levels.map(l => (
+          <div key={l}>Livello {l}
+            <div className="flex items-center gap-1">
+              <NumInput className="field px-1 text-center" min={0} title="Usati" aria-label={`Slot di livello ${l} usati`} value={c.slot?.[l]?.usati ?? 0} onCommit={n => set(`slot.${l}.usati`, n)} />/
+              <NumInput className="field px-1 text-center" min={0} title="Totali" aria-label={`Slot di livello ${l} totali`} value={c.slot?.[l]?.max ?? 0} onCommit={n => set(`slot.${l}.max`, n)} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {mode === 'active' && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {!levels.length && <span className="text-muted">Nessuno slot impostato.</span>}
+          <button className="btn" aria-pressed={showAll} onClick={() => setShowAll(v => !v)}>{showAll ? 'Nascondi i livelli senza slot' : 'Modifica i livelli'}</button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const abOpts = ABILITIES.map(a => [a, ABILITY_LABEL[a]] as [string, string])
 const blocks: Record<string, BlockDef> = {
@@ -108,7 +185,10 @@ const blocks: Record<string, BlockDef> = {
   images: imagesBlock,
   portrait: portraitBlock,
   derived: { label: 'Valori calcolati', C: DerivedBlock },
-  slots: { label: 'Slot incantesimo', C: SlotsBlock },
+  slots: { label: 'Slot incantesimo', C: SlotsBlock, cfg: { mode: 'all' },
+    props: [{ key: 'mode', label: 'Mostra', options: [['all', 'Tutti i livelli (1–9)'], ['active', 'Solo i livelli con slot'], ['pact', 'Magia del Patto (livello unico)']] }] },
+  identity: { label: 'Intestazione (nome e dati)', C: IdentityBlock },
+  vitals: { label: 'CA, Iniziativa, Velocità', C: VitalsBlock },
   attacks: rowsBlock('Elenco attacchi', 'attacchiLista', [
     { key: 'nome', label: 'Nome', w: '3' }, { key: 'bonus', label: 'Att.', num: true, roll: 'attack', w: '2' },
     { key: 'danni', label: 'Danni', roll: 'dice', w: '3' }, { key: 'tipo', label: 'Tipo', w: '2' }], 'attacco', { kind: 'items', noun: 'armi e oggetti', filter: e => e.tipo !== 'magia', summary: itemSummary }),
@@ -120,15 +200,15 @@ const blocks: Record<string, BlockDef> = {
 }
 
 // Layout di default: tutto è modificabile dall'utente. Le altezze si adattano al contenuto.
-const { fld, blk, sub, grp } = kit('c', FIELDS)
+const { fld, blk, sub, grp, skip } = kit('c', FIELDS)
 const ab = (a: Ability) => blk('ability', { ability: a, save: true, skills: true })
 
 export const CHARACTER_KIND: KindDef = {
   blocks, fields: FIELDS,
   defaults: [
-    grp('Intestazione', 3, [fld('name'), fld('classe'), fld('sottoclasse'), fld('specie'), fld('background'), fld('livello'), fld('pe')], 0, 0, 9),
+    (skip(6), grp('Intestazione', 1, [blk('identity')], 0, 0, 9)), // skip: gli id dei blocchi successivi restano quelli di prima
     grp('Ritratto', 1, [blk('portrait')], 9, 0, 3),
-    grp('Combattimento', 1, [blk('hp'), sub('Stato', 2, [fld('ca'), fld('velocita'), fld('ispirazione'), fld('esaurimento')]), blk('derived')], 0, 8, 4),
+    (skip(1), grp('Combattimento', 1, [blk('vitals'), blk('hp'), sub('Stato', 2, [fld('ispirazione'), fld('esaurimento')]), blk('derived')], 0, 8, 4)),
     grp('Caratteristiche e abilità', 3, ABILITIES.map(ab), 4, 8, 8),
     grp('Incantesimi', 1, [fld('incantesimi.car'), blk('slots'), blk('spells')], 0, 40, 4),
     grp('Equipaggiamento', 1, [blk('attacks'), blk('inventory'), fld('equipaggiamento'), sub('Monete', 3, ['mr', 'ma', 'me', 'mo', 'mp'].map(m => fld('monete.' + m)))], 4, 60, 4),
@@ -149,7 +229,7 @@ export const CHARACTER_PLAY_KIND: KindDef = {
   defaults: [
     pk.grp('Personaggio', 3, [pk.fld('name'), pk.fld('classe'), pk.fld('livello')], 0, 0, 12),
     pk.grp('Salute', 1, [pk.blk('playhp'), pk.blk('conditions')], 0, 6, 4),
-    pk.grp('Combattimento', 1, [pk.blk('derived'), pk.sub('Stato', 2, [pk.fld('ca'), pk.fld('velocita'), pk.fld('ispirazione'), pk.fld('esaurimento')]), pk.blk('attacks')], 4, 6, 5),
+    (pk.skip(1), pk.grp('Combattimento', 1, [pk.blk('vitals'), pk.blk('derived'), pk.sub('Stato', 2, [pk.fld('ispirazione'), pk.fld('esaurimento')]), pk.blk('attacks')], 4, 6, 5)),
     pk.grp('Riposi', 1, [pk.blk('rest')], 9, 6, 3),
     pk.grp('Caratteristiche e abilità', 3, ABILITIES.map(pab), 0, 30, 12),
     pk.grp('Incantesimi', 1, [pk.fld('incantesimi.car'), pk.blk('slots'), pk.blk('spells')], 0, 60, 6),

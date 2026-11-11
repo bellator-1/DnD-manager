@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { collect, findInPages, norm, search, toDoc } from './search'
+import { collect, findInPages, highlightRanges, norm, search, toDoc } from './search'
 
 const docs = [
   toDoc('notes', { id: '1', name: 'Il drago rosso', body: 'Vive sulla montagna di Karak', tags: ['bestiario'] }),
@@ -35,5 +35,23 @@ describe('findInPages', () => {
   it('richiede tutte le parole nella stessa pagina', () => {
     expect(findInPages(pages, 'nani spade').length).toBe(0)
     expect(findInPages(pages, 'nani capitolo').map(r => r.page)).toEqual([1])
+  })
+})
+
+describe('highlightRanges', () => {
+  it('trova i termini senza distinguere maiuscole e accenti, con indici del testo originale', () => {
+    const t = 'La Città è grande'
+    expect(highlightRanges(t, ['citta']).map(([a, b]) => t.slice(a, b))).toEqual(['Città'])
+    expect(highlightRanges(t, ['e']).map(([a, b]) => t.slice(a, b))).toEqual(['è', 'e']) // l'accento non impedisce la corrispondenza
+  })
+  it('più termini e occorrenze, in ordine e senza sovrapposizioni', () => {
+    const t = 'palla di fuoco, palla'
+    expect(highlightRanges(t, ['palla', 'fuoco']).map(([a, b]) => t.slice(a, b))).toEqual(['palla', 'fuoco', 'palla'])
+    expect(highlightRanges('aaaa', ['aa', 'aaa'])).toEqual([[0, 4]]) // intervalli sovrapposti si fondono
+  })
+  it('nessun risultato con testo o termini vuoti', () => {
+    expect(highlightRanges('', ['x'])).toEqual([])
+    expect(highlightRanges('abc', [])).toEqual([])
+    expect(highlightRanges('abc', ['z'])).toEqual([])
   })
 })

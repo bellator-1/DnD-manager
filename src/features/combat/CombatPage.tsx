@@ -5,6 +5,8 @@ import { Kind } from '../../core/repo'
 import { useDoc } from '../../core/useDoc'
 import { useEntities } from '../../core/useEntities'
 import { roll } from '../dice/roll'
+import { confirmDialog } from '../../core/dialog'
+import { NumInput } from '../../core/NumInput'
 
 interface Fighter { id: string; name: string; init: number; mod: number; pf: number; max: number; ca: number; cond: string[]; ref?: { kind: Kind; id: string } }
 interface Combat { round: number; active: string | null; fighters: Fighter[] }
@@ -67,9 +69,9 @@ export function CombatPage() {
           <button className="btn border-brass text-brass disabled:opacity-40" disabled={!order.length} onClick={next}>▶ {cb.active ? 'Turno successivo' : 'Inizia'}</button>
           <button className="btn disabled:opacity-40" disabled={!order.length} onClick={rollAll} title="Ritira l'iniziativa di tutti e riparte dal round 1">⚄ Tira iniziativa per tutti</button>
           <label className="ml-auto flex items-center gap-1 text-sm">Danni / cure
-            <input className="field w-16 px-1 text-center" type="number" min={1} value={amount} onChange={e => setAmount(Math.max(1, num(e.target.value)))} aria-label="Quantità di danni o cure" />
+            <NumInput className="field w-16 px-1 text-center" min={1} value={amount} onCommit={n => setAmount(Math.max(1, n))} aria-label="Quantità di danni o cure" />
           </label>
-          <button className="btn disabled:opacity-40" disabled={!order.length} onClick={() => confirm('Terminare il combattimento e svuotare l\'elenco?') && save(EMPTY)}>Nuovo combattimento</button>
+          <button className="btn disabled:opacity-40" disabled={!order.length} onClick={async () => { if (await confirmDialog('Terminare il combattimento e svuotare l\'elenco dei combattenti?', { danger: true, ok: 'Termina' })) save(EMPTY) }}>Nuovo combattimento</button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 rounded border border-line bg-panel p-2 text-sm">
@@ -78,7 +80,7 @@ export function CombatPage() {
             {chars.items.length > 0 && <optgroup label="Personaggi">{chars.items.map((e: any) => <option key={e.id} value={`characters:${e.id}`}>{e.name}</option>)}</optgroup>}
             {npcs.items.length > 0 && <optgroup label="PNG e creature">{npcs.items.map((e: any) => <option key={e.id} value={`npcs:${e.id}`}>{e.name}</option>)}</optgroup>}
           </select>
-          <label className="flex items-center gap-1">×<input className="field w-14 px-1 text-center" type="number" min={1} max={30} value={qty} onChange={e => setQty(Math.min(30, Math.max(1, num(e.target.value))))} aria-label="Quanti" /></label>
+          <label className="flex items-center gap-1">×<NumInput className="field w-14 px-1 text-center" min={1} max={30} value={qty} onCommit={n => setQty(Math.min(30, Math.max(1, n)))} aria-label="Quanti" /></label>
           <button className="btn disabled:opacity-40" disabled={!pick} onClick={addPicked}>Aggiungi</button>
           <span className="mx-2 opacity-40">|</span>
           <input className="field w-48" placeholder="Nome (manuale)" value={manual} onChange={e => setManual(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManual()} />
@@ -94,12 +96,12 @@ export function CombatPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="w-4 text-brass" aria-hidden>{f.id === cb.active ? '▶' : ''}</span>
                   <input className="field w-44 font-display" value={f.name} onChange={e => patch(f.id, { name: e.target.value })} aria-label="Nome" />
-                  <label className="flex items-center gap-1 text-xs">Iniz.<input className="field w-14 px-1 text-center" type="number" value={f.init} onChange={e => patch(f.id, { init: num(e.target.value) })} /></label>
+                  <label className="flex items-center gap-1 text-xs">Iniz.<NumInput className="field w-14 px-1 text-center" value={f.init} onCommit={n => patch(f.id, { init: n })} /></label>
                   <button className="btn px-1.5 py-0" title="Ritira l'iniziativa" aria-label="Ritira l'iniziativa" onClick={() => patch(f.id, { init: initRoll(f.mod) })}>⚄</button>
-                  <label className="flex items-center gap-1 text-xs">CA<input className="field w-14 px-1 text-center" type="number" value={f.ca} onChange={e => patch(f.id, { ca: num(e.target.value) })} /></label>
+                  <label className="flex items-center gap-1 text-xs">CA<NumInput className="field w-14 px-1 text-center" value={f.ca} onCommit={n => patch(f.id, { ca: n })} /></label>
                   <label className="flex items-center gap-1 text-xs">PF
-                    <input className="field w-16 px-1 text-center" type="number" value={f.pf} onChange={e => patch(f.id, { pf: Math.max(0, num(e.target.value)) })} aria-label="PF attuali" />/
-                    <input className="field w-16 px-1 text-center" type="number" value={f.max} onChange={e => patch(f.id, { max: Math.max(1, num(e.target.value)) })} aria-label="PF massimi" />
+                    <NumInput className="field w-16 px-1 text-center" min={0} value={f.pf} onCommit={n => patch(f.id, { pf: Math.max(0, n) })} aria-label="PF attuali" />/
+                    <NumInput className="field w-16 px-1 text-center" min={1} value={f.max} onCommit={n => patch(f.id, { max: Math.max(1, n) })} aria-label="PF massimi" />
                   </label>
                   <span className="ml-auto flex items-center gap-1">
                     <button className="btn px-2" onClick={() => hit(f, -amount)}>− {amount}</button>

@@ -19,7 +19,27 @@
   h1, h2, h3 { @apply font-display; }
   :focus-visible { outline: 2px solid rgb(var(--c-brass)); outline-offset: 2px; }
   ::selection { background: rgb(var(--c-brass) / .35); }
-  * { scrollbar-width: thin; scrollbar-color: rgb(var(--c-edge)) transparent; }
+  /* Barre di scorrimento sottili e coerenti con il tema. Dove il browser supporta ::-webkit-scrollbar si usa quello (più rifinito);
+     altrove (Firefox) restano scrollbar-width/scrollbar-color. */
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--c-edge) / .7) transparent; }
+  @supports selector(::-webkit-scrollbar) {
+    * { scrollbar-width: auto; scrollbar-color: auto; }
+    *::-webkit-scrollbar { width: 12px; height: 12px; }
+    *::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+    *::-webkit-scrollbar-thumb { background-color: rgb(var(--c-edge) / .55); border: 3px solid transparent; background-clip: content-box; border-radius: 999px; }
+    *::-webkit-scrollbar-thumb:hover { background-color: rgb(var(--c-brass) / .85); }
+    *::-webkit-scrollbar-thumb:active { background-color: rgb(var(--c-brass)); }
+  }
+  /* Caselle di spunta: stesso aspetto su ogni sistema, con segno di spunta e focus visibile. */
+  input[type='checkbox'] { appearance: none; -webkit-appearance: none; flex: none; display: inline-grid; place-content: center; width: 1.125rem; height: 1.125rem; margin: 0; cursor: pointer; vertical-align: middle;
+    border: 1.5px solid rgb(var(--c-edge)); border-radius: .3rem; background: rgb(var(--c-ink)); transition: background-color .12s, border-color .12s; }
+  input[type='checkbox']::before { content: ''; width: .65rem; height: .65rem; transform: scale(0); transition: transform .1s ease-out; background: rgb(var(--c-onbrass));
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+  input[type='checkbox']:hover { border-color: rgb(var(--c-brass)); }
+  input[type='checkbox']:checked { background: rgb(var(--c-brass)); border-color: rgb(var(--c-brass)); }
+  input[type='checkbox']:checked::before { transform: scale(1); }
+  input[type='checkbox']:disabled { opacity: .4; cursor: not-allowed; }
+  @media (forced-colors: active) { input[type='checkbox']:checked { background: Highlight; } input[type='checkbox']::before { background: HighlightText; } }
   input[type='number'] { font-variant-numeric: tabular-nums; }
   summary::-webkit-details-marker { display: none; }
   @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
@@ -77,3 +97,15 @@
 .lore .img-wrap[data-align="left"] { float: left; margin: .3em 1.3em .6em 0; }
 .lore .img-wrap[data-align="right"] { float: right; margin: .3em 0 .6em 1.3em; }
 .lore .img-wrap.sel img { outline: 2px solid theme('colors.brass'); outline-offset: 2px; }
+
+/* Strato di testo dei PDF (selezione, copia, evidenziazione della ricerca). Regole essenziali adattate da pdf.js; il testo è trasparente sopra la pagina disegnata. */
+.textLayer { position: absolute; inset: 0; overflow: clip; text-align: initial; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 0; }
+.textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.textLayer > :not(.markedContent), .textLayer .markedContent span:not(.markedContent) { z-index: 1; }
+.textLayer span.markedContent { top: 0; height: 0; }
+.textLayer span[role='img'] { user-select: none; cursor: default; }
+.textLayer ::selection { background: rgb(0 90 255 / .3); }
+.textLayer br::selection { background: transparent; }
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.textLayer.selecting .endOfContent { top: 0; }
+.textLayer mark.pdf-hit { color: transparent; background: rgb(255 200 0 / .55); border-radius: 2px; box-shadow: 0 0 0 1px rgb(255 160 0 / .6); }

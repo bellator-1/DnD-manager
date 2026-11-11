@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { removeImage, saveImage, useImageUrl } from '../../core/images'
 import type { Cfg } from '../../core/layouts'
 import type { BlockDef, Setter } from '../../core/SheetView'
+import { alertDialog, confirmDialog } from '../../core/dialog'
 
 // «Immagini»: galleria nel campo «immagini» (nomi dei file in <campagna>/images/). Le foto grandi vengono ridotte a 1600 px.
 // Cosa si vede (didascalie, pulsante aggiungi, pulsante elimina, ridimensionamento) si sceglie dal layout manager, nelle impostazioni ⚙ del blocco.
@@ -35,7 +36,7 @@ function Tile({ im, cfg, onChange, onDelete, onOpen }: { im: Img; cfg: Cfg; onCh
             <button className="btn px-1.5 py-0" title="Riduci" aria-label="Riduci l'immagine" onClick={() => onChange({ w: clampW(w - 10) })}>−</button>
             <button className="btn px-1.5 py-0" title="Ingrandisci" aria-label="Ingrandisci l'immagine" onClick={() => onChange({ w: clampW(w + 10) })}>+</button>
           </>}
-          {cfg.del && <button className="btn px-1.5 py-0" title="Rimuovi l'immagine" aria-label="Rimuovi l'immagine" onClick={() => confirm("Rimuovere l'immagine?") && onDelete()}>✕</button>}
+          {cfg.del && <button className="btn px-1.5 py-0" title="Rimuovi l'immagine" aria-label="Rimuovi l'immagine" onClick={async () => { if (await confirmDialog("Rimuovere l'immagine?", { danger: true, ok: 'Rimuovi' })) onDelete() }}>✕</button>}
         </div>
       )}
     </div>
@@ -56,7 +57,7 @@ function ImagesView({ c, set, cfg }: { c: any; set: Setter; cfg: Cfg }) {
     try {
       const names = await Promise.all([...files].filter(f => f.type.startsWith('image/')).map(f => saveImage(cid, f, 1600)))
       set('immagini', [...list, ...names.map(src => ({ src }))])
-    } catch (e) { alert(`Impossibile salvare l'immagine: ${(e as Error).message}`) }
+    } catch (e) { alertDialog(`Impossibile salvare l'immagine: ${(e as Error).message}`) }
   }
   return (
     <div className="space-y-2">
@@ -99,7 +100,7 @@ function PortraitView({ c, set, cfg }: { c: any; set: Setter; cfg: Cfg }) {
       const name = await saveImage(cid, f, 1200)
       if (c.ritratto) removeImage(cid, c.ritratto).catch(() => {})
       set('ritratto', name)
-    } catch (e) { alert(`Impossibile salvare l'immagine: ${(e as Error).message}`) }
+    } catch (e) { alertDialog(`Impossibile salvare l'immagine: ${(e as Error).message}`) }
   }
   return (
     <div className="space-y-1">

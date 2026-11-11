@@ -10,6 +10,7 @@ import { LinksBlock } from '../shared/Links'
 import Editor from './Editor'
 import { Folder, childrenOf, pathOf, removeFolder } from './folders'
 import { LinkTarget } from './wikilink'
+import { confirmDialog, promptDialog } from '../../core/dialog'
 
 export interface Note extends Entity { body: string; folder?: string; tags?: string[] }
 const ROUTES: Record<string, string> = { characters: 'schede', items: 'oggetti', npcs: 'png', maps: 'mappe' }
@@ -48,13 +49,13 @@ export function NotesPage() {
   const setFolders = (next: Folder[]) => saveFd({ folders: next })
   const openFolder = (id: string) => id && setFolders(folders.map(f => (f.id === id ? { ...f, open: true } : f)))
   const newNote = async (folder: string) => { openFolder(folder); setSel((await create({ name: 'Nuova nota', body: '', folder, tags: [] })).id) }
-  const newFolder = (parent: string) => {
-    const name = prompt('Nome della cartella')?.trim()
+  const newFolder = async (parent: string) => {
+    const name = (await promptDialog('Nome della cartella'))?.trim()
     if (name) setFolders([...folders.map(f => (f.id === parent ? { ...f, open: true } : f)), { id: crypto.randomUUID(), name, parent, open: true }])
   }
-  const rename = (f: Folder) => { const name = prompt('Nome della cartella', f.name)?.trim(); if (name) setFolders(folders.map(x => (x.id === f.id ? { ...x, name } : x))) }
-  const delFolder = (f: Folder) => {
-    if (!confirm(`Eliminare la cartella «${f.name}»? Le note e le sottocartelle non vengono cancellate: salgono di un livello.`)) return
+  const rename = async (f: Folder) => { const name = (await promptDialog('Nome della cartella', f.name))?.trim(); if (name) setFolders(folders.map(x => (x.id === f.id ? { ...x, name } : x))) }
+  const delFolder = async (f: Folder) => {
+    if (!(await confirmDialog(`Eliminare la cartella «${f.name}»? Le note e le sottocartelle non vengono cancellate: salgono di un livello.`, { danger: true }))) return
     const r = removeFolder(folders, f.id)
     items.filter(n => n.folder === f.id).forEach(n => update({ ...n, folder: r.reparent }))
     setFolders(r.folders)
@@ -124,7 +125,7 @@ export function NotesPage() {
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
               <div className="flex gap-2">
                 <input className="field font-display text-2xl" value={cur.name} onChange={e => update({ ...cur, name: e.target.value })} aria-label="Titolo" />
-                <button className="btn shrink-0" onClick={() => confirm(`Eliminare «${cur.name}»?`) && (remove(cur.id), setSel(null))}>Elimina</button>
+                <button className="btn shrink-0" onClick={async () => { if (await confirmDialog(`Eliminare «${cur.name}»?`, { danger: true })) { remove(cur.id); setSel(null) } }}>Elimina</button>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm">
                 <label className="flex items-center gap-1">Cartella
