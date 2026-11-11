@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePersisted } from '../../core/SidePanel'
 import { roll, RollResult } from './roll'
+import { setLastRoll } from './lastRoll'
 import { promptDialog } from '../../core/dialog'
 import { NumInput } from '../../core/NumInput'
 
@@ -56,7 +57,7 @@ export function DiceMenu() {
   const timer = useRef(0)
 
   const go = (e: string, label?: string) => {
-    try { const r = roll(e, label); setLog(l => [r, ...l].slice(0, 30)); setErr(''); return r } catch (x) { setErr((x as Error).message); return null }
+    try { const r = roll(e, label); setLog(l => [r, ...l].slice(0, 30)); setErr(''); setLastRoll({ expr: e, label }); return r } catch (x) { setErr((x as Error).message); return null }
   }
   useEffect(() => {
     const h = (ev: Event) => {

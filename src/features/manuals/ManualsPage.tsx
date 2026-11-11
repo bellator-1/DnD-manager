@@ -270,7 +270,7 @@ export function ManualsPage() {
     if (m.source === 'handle') await delHandle(`pdf:${m.id}`).catch(() => {})
     else await store().remove(`${cid}/manual-files/${m.file}`)
     await store().remove(`${cid}/manual-files/${m.id}.index.json`)
-    await remove(m.id); setSel(null)
+    await remove(m.id, { hard: true }); setSel(null) // i manuali non passano dal cestino: il file copiato sarebbe già stato tolto
   }
   return (
     <div className="flex h-full min-h-0">

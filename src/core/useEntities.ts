@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Entity, Kind, repo } from './repo'
+import { currentVersion } from './schema'
 import { beginSave, endSave, tracked } from './saveStatus'
+import { persist } from './saving'
+import { invalidatePool } from './pool'
 
 // CRUD generico con salvataggio ritardato: riusato da schede, note, oggetti, PNG, mappe. Ogni salvataggio in attesa è tracciato dall'indicatore.
 export function useEntities<T extends Entity>(kind: Kind) {
@@ -18,18 +21,19 @@ export function useEntities<T extends Entity>(kind: Kind) {
     if (t) window.clearTimeout(t); else beginSave()
     timers.current.set(e.id, window.setTimeout(() => {
       timers.current.delete(e.id)
-      repo.save(cid, kind, e).then(() => endSave(), err => endSave(err))
+      persist(`${cid}/${kind}/${e.id}`, () => repo.save(cid, kind, e)).then(() => { invalidatePool(cid, kind); endSave() }, err => endSave(err)) // se fallisce, riprova da sola e poi resta nel pulsante «Riprova»
     }, 500))
   }, [cid, kind])
 
   const create = async (init: Omit<T, keyof Entity> & { name: string }) => {
-    const e = { ...init, id: crypto.randomUUID(), schemaVersion: 1, updatedAt: Date.now() } as unknown as T
-    await tracked(repo.save(cid, kind, e)); setItems(l => [...l, e]); return e
+    const e = { ...init, id: crypto.randomUUID(), schemaVersion: currentVersion(kind), updatedAt: Date.now() } as unknown as T
+    await tracked(repo.save(cid, kind, e)); invalidatePool(cid, kind); setItems(l => [...l, e]); return e
   }
-  const remove = async (id: string) => {
+  // hard: elimina davvero (senza passare dal cestino): serve a chi ha file propri da togliere insieme, come i manuali.
+  const remove = async (id: string, opts: { hard?: boolean } = {}) => {
     const t = timers.current.get(id)
     if (t) { window.clearTimeout(t); timers.current.delete(id); endSave() } // un salvataggio in attesa non deve ricreare il file appena eliminato
-    await tracked(repo.remove(cid, kind, id)); setItems(l => l.filter(x => x.id !== id))
+    await tracked(opts.hard ? repo.removeHard(cid, kind, id) : repo.remove(cid, kind, id)); invalidatePool(cid, kind); setItems(l => l.filter(x => x.id !== id))
   }
   return { items, update, create, remove, loaded }
 }

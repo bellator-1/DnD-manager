@@ -9,22 +9,59 @@ import { relationsBlock } from '../shared/Relations'
 import { playBlocks } from './play'
 import { linksBlock } from '../shared/Links'
 import { BlockDef, KindDef, Setter } from '../../core/SheetView'
+import { Info } from '../../core/Info'
 import { rollEvent } from '../dice/DiceMenu'
+import { useLastRoll } from '../dice/lastRoll'
+import { itemActions, spellActions, useEffective } from './effective'
+import { EFFECT_TARGETS, Extra, extraOf, hasExtra, skillBonus } from './rules'
 import { ABILITIES, ABILITY_LABEL, Ability, Character, FIELDS, Prof, SKILLS, bonusAbilita, bonusCompetenza, fmt, mod } from './model'
 
 type P = { c: Character; set: Setter; cfg: Cfg }
 const profOf = (c: Character, key: string) => (c.competenze?.[key] ?? 0) as Prof
 
+// Bonus personalizzato di un'abilità o di un tiro salvezza (⚙): un'altra caratteristica, modificatori da sommare, bonus fisso.
+// Esempio: Arcano con la Saggezza in più → spunta «Saggezza». La chiave non contiene punti (finirebbe annidata nel percorso dei dati).
+function ExtraEditor({ c, set, id, base, title, bonus }: { c: Character; set: Setter; id: string; base: Ability; title: string; bonus: number }) {
+  const x: Extra = extraOf(c, id) ?? {}
+  const put = (n: Extra) => set('abilitaExtra.' + id, hasExtra(n) ? n : undefined)
+  return (
+    <Info title={`Bonus personalizzato: ${title}`} label={<span className={hasExtra(x) ? 'text-brass' : ''}>⚙</span>}>
+      <p className="text-xs text-muted">Cambia come si calcola questo tiro, solo per questo personaggio. Bonus attuale: <b className="text-paper">{fmt(bonus)}</b>.</p>
+      <label className="block text-xs text-muted">Caratteristica usata
+        <select className="field mt-0.5 text-paper" value={x.ab ?? ''} onChange={e => put({ ...x, ab: (e.target.value || undefined) as Ability | undefined })}>
+          <option value="">Quella normale ({ABILITY_LABEL[base]})</option>
+          {ABILITIES.map(a => <option key={a} value={a}>{ABILITY_LABEL[a]}</option>)}
+        </select>
+      </label>
+      <fieldset className="text-xs text-muted"><legend>Somma anche il modificatore di</legend>
+        <div className="mt-1 grid grid-cols-3 gap-1">
+          {ABILITIES.map(a => (
+            <label key={a} className="flex items-center gap-1 text-paper">
+              <input type="checkbox" checked={!!x.add?.includes(a)} onChange={e => put({ ...x, add: e.target.checked ? [...(x.add ?? []), a] : (x.add ?? []).filter(k => k !== a) })} />{ABILITY_LABEL[a]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <label className="block text-xs text-muted">Bonus fisso (+/−)
+        <NumInput className="field mt-0.5 w-24 text-center text-paper" value={x.flat ?? 0} onCommit={n => put({ ...x, flat: n || undefined })} />
+      </label>
+      {hasExtra(x) && <button className="btn" onClick={() => put({})}>Ripristina il calcolo normale</button>}
+    </Info>
+  )
+}
+
 function SkillList({ c, set, list }: { c: Character; set: Setter; list: typeof SKILLS }) {
+  const eff = useEffective(c)
   return (
     <ul className="space-y-1 text-sm">
       {list.map(s => {
-        const p = profOf(c, s.key), b = bonusAbilita(c, s.ab, p)
+        const p = profOf(c, s.key), x = extraOf(c, s.key), b = skillBonus(c.livello, eff.ab, s.ab, p, x, eff.abilita)
         return (
           <li key={s.key} className="flex items-center gap-2">
             <button className="w-5 text-brass" title="Cambia competenza" onClick={() => set('competenze.' + s.key, (p + 1) % 3)}>{['○', '●', '◆'][p]}</button>
             <button className="w-10 shrink-0 rounded border border-transparent px-1 text-right hover:border-brass hover:text-brass" title={`Tira ${s.label} (1d20${fmt(b)})`} aria-label={`Tira ${s.label} ${fmt(b)}`} onClick={() => rollEvent(`1d20${fmt(b)}`, s.label)}>{fmt(b)}</button>
-            <span>{s.label}</span>
+            <span className="min-w-0 flex-1 truncate">{s.label}{hasExtra(x) ? ' ✱' : ''}</span>
+            <ExtraEditor c={c} set={set} id={s.key} base={s.ab} title={s.label} bonus={b} />
           </li>
         )
       })}
@@ -35,22 +72,29 @@ function SkillList({ c, set, list }: { c: Character; set: Setter; list: typeof S
 // La "scheda 5.5": caratteristica + tiro salvezza + le sue abilità, in un blocco solo.
 export const AbilityBlock = ({ c, set, cfg }: P) => {
   const a = cfg.ability as Ability
+  const eff = useEffective(c)
+  const m = mod(eff.ab[a])
+  const sp = (c.tiriSalvezza?.[a] ? 1 : 0) as Prof, sx = extraOf(c, `ts_${a}`), sb = skillBonus(c.livello, eff.ab, a, sp, sx, eff.ts)
   return (
     <div className="rounded-md border border-line p-2">
       <div className="flex items-center gap-3">
         <div className="hex shrink-0">
-          <button className="font-display text-xl text-brass" title="Tira" aria-label={`Tira ${ABILITY_LABEL[a]} ${fmt(mod(c.abilita[a]))}`} onClick={() => rollEvent(`1d20${fmt(mod(c.abilita[a]))}`, ABILITY_LABEL[a])}>{fmt(mod(c.abilita[a]))}</button>
+          <button className="font-display text-xl text-brass" title="Tira" aria-label={`Tira ${ABILITY_LABEL[a]} ${fmt(m)}`} onClick={() => rollEvent(`1d20${fmt(m)}`, ABILITY_LABEL[a])}>{fmt(m)}</button>
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-display">{ABILITY_LABEL[a]}</div>
           <NumInput className="field mt-1 text-center" value={c.abilita[a]} onCommit={n => set('abilita.' + a, n)} aria-label={ABILITY_LABEL[a]} />
+          {eff.ab[a] !== c.abilita[a] && <div className="mt-0.5 text-xs text-brass" title="Punteggio con gli effetti attivi">con gli effetti: {eff.ab[a]}</div>}
         </div>
       </div>
       {cfg.save && (
-        <label className="mt-1 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={!!c.tiriSalvezza?.[a]} onChange={e => set('tiriSalvezza.' + a, e.target.checked)} />
-          <button type="button" onClick={() => rollEvent(`1d20${fmt(bonusAbilita(c, a, c.tiriSalvezza?.[a] ? 1 : 0))}`, 'TS ' + ABILITY_LABEL[a])}>Tiro salvezza {fmt(bonusAbilita(c, a, c.tiriSalvezza?.[a] ? 1 : 0))}</button>
-        </label>
+        <div className="mt-1 flex items-center gap-2 text-sm">
+          <label className="flex min-w-0 flex-1 items-center gap-2">
+            <input type="checkbox" checked={!!c.tiriSalvezza?.[a]} onChange={e => set('tiriSalvezza.' + a, e.target.checked)} />
+            <button type="button" onClick={() => rollEvent(`1d20${fmt(sb)}`, 'TS ' + ABILITY_LABEL[a])}>Tiro salvezza {fmt(sb)}{hasExtra(sx) ? ' ✱' : ''}</button>
+          </label>
+          <ExtraEditor c={c} set={set} id={`ts_${a}`} base={a} title={`Tiro salvezza ${ABILITY_LABEL[a]}`} bonus={sb} />
+        </div>
       )}
       {cfg.skills && <div className="mt-2 border-t border-line pt-2"><SkillList c={c} set={set} list={SKILLS.filter(s => s.ab === a)} /></div>}
     </div>
@@ -60,6 +104,7 @@ export const AbilityBlock = ({ c, set, cfg }: P) => {
 const SkillsBlock = ({ c, set, cfg }: P) => <SkillList c={c} set={set} list={cfg.ability ? SKILLS.filter(s => s.ab === cfg.ability) : SKILLS} />
 
 export const HpBlock = ({ c, set }: P) => {
+  const eff = useEffective(c)
   const pf = c.pf ?? { max: 1, attuali: 1, temp: 0 }
   const ratio = pf.max > 0 ? Math.max(0, Math.min(1, pf.attuali / pf.max)) : 0
   return (
@@ -71,6 +116,7 @@ export const HpBlock = ({ c, set }: P) => {
         {([['attuali', 'Attuali'], ['max', 'Massimi'], ['temp', 'Temporanei']] as const).map(([k, l]) => (
           <label key={k} className="text-xs text-muted">{l}
             <NumInput className="field mt-0.5 text-center font-display text-xl text-paper" value={pf[k] ?? 0} onCommit={n => set('pf.' + k, n)} />
+            {k === 'max' && eff.pfMax !== pf.max && <span className="block text-brass" title="Massimo con gli effetti attivi">con gli effetti: {eff.pfMax}</span>}
           </label>
         ))}
       </div>
@@ -99,29 +145,78 @@ const Tile = ({ label, children }: { label: string; children: React.ReactNode })
   </div>
 )
 const VitalsBlock = ({ c, set }: P) => {
-  const ini = mod(c.abilita?.des ?? 10)
+  const eff = useEffective(c)
+  const ini = mod(eff.ab.des) + eff.iniziativa
+  const hint = (now: number, base: number) => now !== base && <span className="text-xs text-brass" title="Valore con gli effetti attivi">con gli effetti: {now}</span>
   return (
     <div className="grid grid-cols-3 gap-2">
-      <Tile label="Classe Armatura"><NumInput className="field mt-1 min-h-10 border-0 bg-transparent px-0 text-center font-display text-3xl" value={c.ca} onCommit={n => set('ca', n)} aria-label="Classe Armatura" /></Tile>
+      <Tile label="Classe Armatura"><NumInput className="field mt-1 min-h-10 border-0 bg-transparent px-0 text-center font-display text-3xl" value={c.ca} onCommit={n => set('ca', n)} aria-label="Classe Armatura" />{hint(eff.ca, c.ca)}</Tile>
       <Tile label="Iniziativa"><button className="mt-1 min-h-10 font-display text-3xl text-brass hover:underline" title={`Tira l'iniziativa (1d20${fmt(ini)})`} aria-label={`Tira l'iniziativa ${fmt(ini)}`} onClick={() => rollEvent(`1d20${fmt(ini)}`, 'Iniziativa')}>{fmt(ini)}</button></Tile>
-      <Tile label="Velocità (m)"><NumInput className="field mt-1 min-h-10 border-0 bg-transparent px-0 text-center font-display text-3xl" value={c.velocita} onCommit={n => set('velocita', n)} aria-label="Velocità in metri" /></Tile>
+      <Tile label="Velocità (m)"><NumInput className="field mt-1 min-h-10 border-0 bg-transparent px-0 text-center font-display text-3xl" value={c.velocita} onCommit={n => set('velocita', n)} aria-label="Velocità in metri" />{hint(eff.velocita, c.velocita)}</Tile>
     </div>
   )
 }
 
 const DerivedBlock = ({ c }: P) => {
+  const eff = useEffective(c)
   const bc = bonusCompetenza(c.livello), car = c.incantesimi?.car as Ability | ''
+  const ini = mod(eff.ab.des) + eff.iniziativa
+  const perc = 10 + skillBonus(c.livello, eff.ab, 'sag', profOf(c, 'percezione'), extraOf(c, 'percezione'), eff.abilita)
+  const att = car ? bc + mod(eff.ab[car]) + eff.attInc : 0
   const rows: [string, string, string?][] = [
     ['Bonus di competenza', fmt(bc)],
-    ['Iniziativa', fmt(mod(c.abilita.des)), `1d20${fmt(mod(c.abilita.des))}`],
-    ['Percezione passiva', String(10 + bonusAbilita(c, 'sag', profOf(c, 'percezione')))],
-    ['CD degli incantesimi', car ? String(8 + bc + mod(c.abilita[car])) : '—'],
-    ['Attacco degli incantesimi', car ? fmt(bc + mod(c.abilita[car])) : '—', car ? `1d20${fmt(bc + mod(c.abilita[car]))}` : undefined],
+    ['Iniziativa', fmt(ini), `1d20${fmt(ini)}`],
+    ['Percezione passiva', String(perc)],
+    ['CD degli incantesimi', car ? String(8 + bc + mod(eff.ab[car]) + eff.cd) : '—'],
+    ['Attacco degli incantesimi', car ? fmt(att) : '—', car ? `1d20${fmt(att)}` : undefined],
   ]
   return <ul className="space-y-1 text-sm">{rows.map(([l, v, r]) => (
     <li key={l} className="flex justify-between"><span className="opacity-70">{l}</span>
       {r ? <button className="font-display text-brass" onClick={() => rollEvent(r, l)}>{v}</button> : <b>{v}</b>}</li>
   ))}</ul>
+}
+
+// Ispirazione Eroica: si ha o non si ha. «Ritira l'ultimo tiro» la spende e ripete l'ultimo tiro del registro dei dadi (il nuovo risultato vale).
+const InspirationBlock = ({ c, set }: P) => {
+  const on = !!c.ispirazione
+  const last = useLastRoll()
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button role="switch" aria-checked={on} aria-label="Ispirazione Eroica" title={on ? 'Disponibile: clic per segnarla come non disponibile' : 'Non disponibile: clic per segnarla come ottenuta'}
+        className={`grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 text-2xl transition ${on ? 'border-brass bg-brass text-ink shadow-[0_0_14px] shadow-brass/60' : 'border-edge text-muted hover:border-brass hover:text-brass'}`}
+        onClick={() => set('ispirazione', !on)}>✦</button>
+      <div className="min-w-0 flex-1">
+        <div className="font-display">Ispirazione Eroica</div>
+        <div className="text-xs text-muted">{on ? 'Disponibile' : 'Non disponibile'}</div>
+      </div>
+      <button className="btn disabled:opacity-40" disabled={!on || !last}
+        title={last ? `Spende l'Ispirazione e ripete: ${last.label ?? last.expr}` : 'Prima fai un tiro: poi potrai ritirarlo'}
+        onClick={() => { if (!last) return; set('ispirazione', false); rollEvent(last.expr, `${last.label ?? 'Tiro'} · ritiro con Ispirazione`) }}>
+        Ritira l'ultimo tiro{last ? ` (${last.label ?? last.expr})` : ''}
+      </button>
+    </div>
+  )
+}
+
+// Effetti degli oggetti e delle magie: spento di default. Acceso, i valori della scheda tengono conto degli elementi segnati «Attivo» negli elenchi.
+const EffectsBlock = ({ c, set }: P) => {
+  const eff = useEffective(c), on = !!c.opzioni?.effetti
+  const name = (t: string) => EFFECT_TARGETS.find(([k]) => k === t)?.[1] ?? t
+  return (
+    <div className="space-y-2 text-sm">
+      <label className="flex items-center gap-2"><input type="checkbox" checked={on} onChange={e => set('opzioni.effetti', e.target.checked)} />Applica gli effetti degli oggetti e delle magie attivi</label>
+      {!on && <p className="text-xs text-muted">Spento: la scheda mostra solo i valori che scrivi tu. Per usarlo, aggiungi gli effetti a un oggetto o a una magia nell'archivio, poi spunta «Attivo» nell'elenco della scheda.</p>}
+      {on && !eff.applied.length && <p className="text-xs text-muted">Nessun effetto attivo. Spunta «Attivo» su un oggetto o una magia che ha effetti.</p>}
+      {on && eff.applied.length > 0 && (
+        <ul className="space-y-0.5">
+          {eff.applied.map((a, i) => (
+            <li key={i} className="flex justify-between gap-2"><span className="truncate">{a.from}{a.effect.nota ? <span className="text-muted"> · {a.effect.nota}</span> : null}</span>
+              <span className="shrink-0 text-brass">{name(a.effect.target)} {a.effect.op === '+' ? fmt(a.effect.valore) : `= ${a.effect.valore}`}</span></li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 // Slot incantesimo. Tre modi: tutti i livelli; solo quelli con slot (per non avere una tabella di zeri); Magia del Patto (un solo livello, pochi slot).
@@ -188,15 +283,17 @@ const blocks: Record<string, BlockDef> = {
   slots: { label: 'Slot incantesimo', C: SlotsBlock, cfg: { mode: 'all' },
     props: [{ key: 'mode', label: 'Mostra', options: [['all', 'Tutti i livelli (1–9)'], ['active', 'Solo i livelli con slot'], ['pact', 'Magia del Patto (livello unico)']] }] },
   identity: { label: 'Intestazione (nome e dati)', C: IdentityBlock },
+  inspiration: { label: 'Ispirazione Eroica', C: InspirationBlock },
+  effects: { label: 'Effetti di oggetti e magie', C: EffectsBlock },
   vitals: { label: 'CA, Iniziativa, Velocità', C: VitalsBlock },
   attacks: rowsBlock('Elenco attacchi', 'attacchiLista', [
     { key: 'nome', label: 'Nome', w: '3' }, { key: 'bonus', label: 'Att.', num: true, roll: 'attack', w: '2' },
-    { key: 'danni', label: 'Danni', roll: 'dice', w: '3' }, { key: 'tipo', label: 'Tipo', w: '2' }], 'attacco', { kind: 'items', noun: 'armi e oggetti', filter: e => e.tipo !== 'magia', summary: itemSummary }),
+    { key: 'danni', label: 'Danni', roll: 'dice', w: '3' }, { key: 'tipo', label: 'Tipo', w: '2' }], 'attacco', { kind: 'items', noun: 'armi e oggetti', filter: e => e.tipo !== 'magia', summary: itemSummary, actions: itemActions }),
   spells: rowsBlock('Elenco incantesimi', 'incantesimiLista', [
-    { key: 'nome', label: 'Nome', w: '3' }, { key: 'lv', label: 'Liv.', num: true, w: '1' }, { key: 'note', label: 'Note', w: '3' }], 'incantesimo', { kind: 'items', noun: 'magie', filter: e => e.tipo === 'magia', summary: itemSummary }),
+    { key: 'nome', label: 'Nome', w: '3' }, { key: 'lv', label: 'Liv.', num: true, w: '1' }, { key: 'note', label: 'Note', w: '3' }], 'incantesimo', { kind: 'items', noun: 'magie', filter: e => e.tipo === 'magia', summary: itemSummary, actions: spellActions }),
   inventory: rowsBlock('Inventario', 'inventarioLista', [
     { key: 'nome', label: 'Nome', w: '3' }, { key: 'qta', label: 'Q.tà', num: true, w: '1' }, { key: 'note', label: 'Note', w: '3' }], 'oggetto',
-    { kind: 'items', noun: 'oggetti', qty: true, filter: e => e.tipo !== 'magia', summary: itemSummary }),
+    { kind: 'items', noun: 'oggetti', qty: true, filter: e => e.tipo !== 'magia', summary: itemSummary, actions: itemActions }),
 }
 
 // Layout di default: tutto è modificabile dall'utente. Le altezze si adattano al contenuto.
@@ -208,7 +305,7 @@ export const CHARACTER_KIND: KindDef = {
   defaults: [
     (skip(6), grp('Intestazione', 1, [blk('identity')], 0, 0, 9)), // skip: gli id dei blocchi successivi restano quelli di prima
     grp('Ritratto', 1, [blk('portrait')], 9, 0, 3),
-    (skip(1), grp('Combattimento', 1, [blk('vitals'), blk('hp'), sub('Stato', 2, [fld('ispirazione'), fld('esaurimento')]), blk('derived')], 0, 8, 4)),
+    (skip(1), grp('Combattimento', 1, [blk('vitals'), blk('hp'), blk('inspiration'), sub('Stato', 2, [fld('esaurimento')]), blk('derived')], 0, 8, 4)),
     grp('Caratteristiche e abilità', 3, ABILITIES.map(ab), 4, 8, 8),
     grp('Incantesimi', 1, [fld('incantesimi.car'), blk('slots'), blk('spells')], 0, 40, 4),
     grp('Equipaggiamento', 1, [blk('attacks'), blk('inventory'), fld('equipaggiamento'), sub('Monete', 3, ['mr', 'ma', 'me', 'mo', 'mp'].map(m => fld('monete.' + m)))], 4, 60, 4),
@@ -218,6 +315,7 @@ export const CHARACTER_KIND: KindDef = {
     grp('Relazioni', 1, [blk('relations')], 0, 118, 12),
     grp('Immagini', 1, [blk('images')], 0, 125, 12),
     grp('Personaggio', 2, [fld('aspetto'), fld('personalita'), fld('ideali'), fld('legami'), fld('difetti'), fld('storia')], 4, 90, 8),
+    grp('Effetti di oggetti e magie', 1, [blk('effects')], 0, 135, 12), // in coda: gli id dei blocchi esistenti restano quelli di prima
   ],
 }
 
@@ -229,10 +327,11 @@ export const CHARACTER_PLAY_KIND: KindDef = {
   defaults: [
     pk.grp('Personaggio', 3, [pk.fld('name'), pk.fld('classe'), pk.fld('livello')], 0, 0, 12),
     pk.grp('Salute', 1, [pk.blk('playhp'), pk.blk('conditions')], 0, 6, 4),
-    (pk.skip(1), pk.grp('Combattimento', 1, [pk.blk('vitals'), pk.blk('derived'), pk.sub('Stato', 2, [pk.fld('ispirazione'), pk.fld('esaurimento')]), pk.blk('attacks')], 4, 6, 5)),
+    (pk.skip(1), pk.grp('Combattimento', 1, [pk.blk('vitals'), pk.blk('derived'), pk.blk('inspiration'), pk.sub('Stato', 2, [pk.fld('esaurimento')]), pk.blk('attacks')], 4, 6, 5)),
     pk.grp('Riposi', 1, [pk.blk('rest')], 9, 6, 3),
     pk.grp('Caratteristiche e abilità', 3, ABILITIES.map(pab), 0, 30, 12),
     pk.grp('Incantesimi', 1, [pk.fld('incantesimi.car'), pk.blk('slots'), pk.blk('spells')], 0, 60, 6),
     pk.grp('Inventario', 1, [pk.blk('inventory'), pk.sub('Monete', 3, ['mr', 'ma', 'me', 'mo', 'mp'].map(m => pk.fld('monete.' + m)))], 6, 60, 6),
+    pk.grp('Effetti di oggetti e magie', 1, [pk.blk('effects')], 0, 90, 12),
   ],
 }

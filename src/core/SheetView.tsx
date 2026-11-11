@@ -2,10 +2,11 @@ import { FC, ReactNode, useEffect, useRef, useState } from 'react'
 import GridLayout, { WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
-import { confirmDialog } from './dialog'
+import { alertDialog, confirmDialog, promptDialog } from './dialog'
 import { Info } from './Info'
 import { Cfg, FieldDef, Node, Root, edit, move, nid, reorderRoot, useLayoutDoc } from './layouts'
 import { NumInput } from './NumInput'
+import { templateKey, useTemplates } from './templates'
 import { getPath, setPath } from './path'
 import { useMedia } from './useMedia'
 
@@ -175,7 +176,12 @@ function LayoutHelp() {
   )
 }
 
-export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: string; kind: KindDef; data: T; onChange: (next: T) => void }) {
+export function SheetView<T>({ layoutKey: baseKey, kind, data, onChange, templates }: { layoutKey: string; kind: KindDef; data: T; onChange: (next: T) => void; templates?: string }) {
+  // Modello di scheda: se l'elemento ne usa uno (campo «modello») il layout è quello del modello; altrimenti il predefinito.
+  const T = useTemplates(templates)
+  const wanted = templates ? ((data as any)?.modello as string | undefined) : undefined
+  const tplId = wanted && !(T.loaded && !T.list.some(t => t.id === wanted)) ? wanted : undefined // un modello eliminato torna al predefinito
+  const layoutKey = templateKey(baseKey, tplId)
   const [roots, setRoots] = useLayoutDoc(layoutKey, kind.defaults)
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
@@ -215,9 +221,51 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
     }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   })
+  // Cronologia delle modifiche ai DATI della scheda (annulla/ripeti). Le raffiche ravvicinate (es. scrivere un numero) contano come un passo.
+  const dpast = useRef<T[]>([])
+  const dfuture = useRef<T[]>([])
+  const dlast = useRef(0)
+  const dataId = (data as any)?.id as string | undefined
+  useEffect(() => { dpast.current = []; dfuture.current = []; bump(n => n + 1) }, [dataId])
+  const commit = (next: T) => {
+    const now = Date.now()
+    if (now - dlast.current > 700) { dpast.current = [...dpast.current.slice(-49), data]; dfuture.current = []; bump(n => n + 1) }
+    dlast.current = now
+    onChange(next)
+  }
+  const undoData = () => { const p = dpast.current.pop(); if (p === undefined) return; dfuture.current.push(data); dlast.current = 0; onChange(p); bump(n => n + 1) }
+  const redoData = () => { const f = dfuture.current.pop(); if (f === undefined) return; dpast.current.push(data); dlast.current = 0; onChange(f); bump(n => n + 1) }
+  useEffect(() => {
+    if (editing) return
+    const k = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName) || (e.target as HTMLElement).isContentEditable || !(e.ctrlKey || e.metaKey)) return
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) { e.preventDefault(); undoData() }
+      else if (key === 'y' || (key === 'z' && e.shiftKey)) { e.preventDefault(); redoData() }
+    }
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  })
   const isClosed = (id: string) => !editing && closed.has(id)
   const anyClosed = roots.some(r => isClosed(r.id))
-  const ctx: Ctx = { kind, data, isClosed, toggleFold, set: (p, v) => onChange(setPath(data, p, v)), patch: f => onChange(f(data)), editing, open, setOpen, mut: f => { snap(); setRoots(f) } }
+  const ctx: Ctx = { kind, data, isClosed, toggleFold, set: (p, v) => commit(setPath(data, p, v)), patch: f => commit(f(data)), editing, open, setOpen, mut: f => { snap(); setRoots(f) } }
+
+  const newTemplate = async (factory: boolean) => {
+    const name = (await promptDialog('Nome del nuovo modello'))?.trim()
+    if (!name) return
+    try {
+      const id = await T.create(name, { [baseKey]: factory ? kind.defaults : roots })
+      commit({ ...(data as any), modello: id })
+    } catch (e) { alertDialog((e as Error).message) }
+  }
+  const renameTemplateNow = async () => {
+    const cur = T.list.find(t => t.id === tplId)
+    const name = cur && (await promptDialog('Nuovo nome del modello', cur.name))?.trim()
+    if (name && tplId) T.rename(tplId, name).catch(e => alertDialog((e as Error).message))
+  }
+  const deleteTemplateNow = async () => {
+    if (!tplId || !(await confirmDialog('Eliminare questo modello? Le schede che lo usano tornano al layout predefinito; i loro dati non cambiano.', { danger: true }))) return
+    try { await T.remove(tplId); commit({ ...(data as any), modello: undefined }) } catch (e) { alertDialog((e as Error).message) }
+  }
 
   const addSection = (top: boolean) => {
     const id = nid()
@@ -231,6 +279,28 @@ export function SheetView<T>({ layoutKey, kind, data, onChange }: { layoutKey: s
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button className="btn" onClick={() => setEditing(e => !e)}>{editing ? 'Fine modifica' : 'Modifica layout'}</button>
         <Info title="Come funziona il layout"><LayoutHelp /></Info>
+        {templates && <Info title="Modelli di scheda" label="Modelli">
+          <p>Un modello è un layout con un nome (per esempio «senza monete di platino»). Ogni scheda usa il modello che scegli qui; il predefinito c'è sempre.</p>
+          <label className="block text-xs text-muted">Modello di questa scheda
+            <select className="field mt-0.5 text-paper" value={tplId ?? ''} onChange={e => commit({ ...(data as any), modello: e.target.value || undefined })}>
+              <option value="">Predefinito</option>
+              {T.list.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn" onClick={() => newTemplate(false)}>Nuovo dal layout attuale…</button>
+            <button className="btn" onClick={() => newTemplate(true)}>Nuovo dal predefinito di fabbrica…</button>
+            {tplId && <>
+              <button className="btn" onClick={renameTemplateNow}>Rinomina…</button>
+              <button className="btn btn-danger" onClick={deleteTemplateNow}>Elimina il modello</button>
+            </>}
+          </div>
+          <p className="text-xs text-muted">Togliere un campo da un modello non cancella il dato: cambiando modello lo ritrovi. Per modificare un modello, sceglilo e usa «Modifica layout».</p>
+        </Info>}
+        {!editing && <>
+          <button className="btn disabled:opacity-40" disabled={!dpast.current.length} onClick={undoData} title="Annulla l'ultima modifica ai dati (Ctrl+Z)">↶ Annulla dati</button>
+          <button className="btn disabled:opacity-40" disabled={!dfuture.current.length} onClick={redoData} title="Ripeti (Ctrl+Maiusc+Z)">↷ Ripeti</button>
+        </>}
         {editing && <>
           <button className="btn disabled:opacity-40" disabled={!past.current.length} onClick={undo} title="Annulla (Ctrl+Z)">↶ Annulla</button>
           <button className="btn disabled:opacity-40" disabled={!future.current.length} onClick={redo} title="Ripeti (Ctrl+Maiusc+Z)">↷ Ripeti</button>

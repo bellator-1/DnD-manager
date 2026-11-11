@@ -14,6 +14,7 @@ import { CombatPage } from './features/combat/CombatPage'
 import { SessionsPage } from './features/sessions/SessionsPage'
 import { RelationsPage } from './features/relations/RelationsPage'
 import { ManualsPage } from './features/manuals/ManualsPage'
+import { TrashPage } from './features/trash/TrashPage'
 import { DialogHost } from './core/dialog'
 
 createRoot(document.getElementById('root')!).render(
@@ -31,6 +32,7 @@ createRoot(document.getElementById('root')!).render(
       <Route path="sessioni" element={<SessionsPage />} />
       <Route path="relazioni" element={<RelationsPage />} />
       <Route path="manuali" element={<ManualsPage />} />
+      <Route path="cestino" element={<TrashPage />} />
     </Route>
   </Routes></BrowserRouter></StorageGate></React.StrictMode>
 )

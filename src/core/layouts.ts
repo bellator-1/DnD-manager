@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { beginSave, endSave } from './saveStatus'
+import { persist } from './saving'
 import { store } from './storage'
 import type { Root } from './tree'
 
@@ -44,7 +45,7 @@ export function useLayoutDoc(key: string, defaults: Root[]) {
     if (timer.current) window.clearTimeout(timer.current); else beginSave()
     timer.current = window.setTimeout(() => {
       timer.current = 0
-      store().write(`${cid}/layouts/${key}.json`, JSON.stringify({ version: 3, roots: next }, null, 2)).then(() => endSave(), e => endSave(e))
+      persist(`${cid}/layouts/${key}`, () => store().write(`${cid}/layouts/${key}.json`, JSON.stringify({ version: 3, roots: next }, null, 2))).then(() => endSave(), e => endSave(e))
     }, 400)
   }
   return [roots, save] as const

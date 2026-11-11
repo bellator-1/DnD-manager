@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { beginSave, endSave } from './saveStatus'
+import { persist } from './saving'
 import { store } from './storage'
 
 // Un singolo documento JSON per campagna (es. «combat/current.json»), con salvataggio ritardato tracciato dall'indicatore.
@@ -21,7 +22,7 @@ export function useDoc<T>(rel: string, init: T) {
     if (timer.current) window.clearTimeout(timer.current); else beginSave()
     timer.current = window.setTimeout(() => {
       timer.current = 0
-      store().write(`${cid}/${rel}`, JSON.stringify(next, null, 2)).then(() => endSave(), e => endSave(e))
+      persist(`${cid}/${rel}`, () => store().write(`${cid}/${rel}`, JSON.stringify(next, null, 2))).then(() => endSave(), e => endSave(e))
     }, 400)
   }
   return [doc, save, loaded] as const

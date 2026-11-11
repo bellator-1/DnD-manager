@@ -6,5 +6,5 @@ export const NpcsPage = () => (
   <EntityPage<Npc> kind="npcs" noun="PNG e creature"
     makers={[{ label: 'Nuovo PNG', make: () => newNpc('PNG') }, { label: 'Nuovo animale', make: () => newNpc('Animale') }, { label: 'Nuova creatura', make: () => newNpc('Creatura') }]}
     group={e => (e.tipo === 'Animale' ? 'Animali' : e.tipo === 'Creatura' || (e.tipo as string) === 'Mostro' ? 'Creature' : 'PNG')}
-    sheet={() => ({ layoutKey: 'npc', def: NPC_KIND })} />
+    sheet={() => ({ layoutKey: 'npc', def: NPC_KIND, templates: 'npc' })} />
 )

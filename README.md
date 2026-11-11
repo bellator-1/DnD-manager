@@ -22,6 +22,20 @@ Schede · Note · Oggetti e magie · PNG e creature · Mappe · **Master** (sezi
 
 Ctrl+K cerca in tutta la campagna. Le schede hanno una **modalità gioco** (PF con danni e cure rapidi, riposi, condizioni): tutto facoltativo e modificabile a mano. Le note hanno cartelle, sottocartelle e tag.
 
+## Cestino, versioni e modelli
+- **Cestino** (menu «Strumenti»): schede, PNG, oggetti, magie, note, mappe e sessioni eliminati finiscono in `<campagna>/trash/` e si ripristinano finché non svuoti il cestino. I manuali si eliminano subito (il loro file copiato viene tolto insieme).
+- **Versioni dei formati**: ogni file ha `schemaVersion`; quando l'app cambia un formato aggiorna i vecchi file in memoria alla lettura e li riscrive al primo salvataggio. Un file creato da una versione più recente non si riscrive (si perderebbero dei dati).
+- **Salvataggi falliti**: si riprovano da soli; se continuano a fallire compare «Riprova» e la chiusura della scheda avvisa che ci sono modifiche non salvate.
+- **Modelli di scheda** (pulsante «Modelli»): un layout con un nome (es. «senza monete di platino»). Si crea dal layout attuale o dal predefinito di fabbrica; ogni scheda usa il modello che scegli, e alla creazione di un personaggio puoi sceglierlo da «Nuova: …». Il dato di un campo tolto non si cancella.
+- **Annulla dati** (↶ / Ctrl+Z) annulla le modifiche ai dati della scheda, a parte quelle al layout.
+
+## Meccaniche facoltative (scheda)
+- **Bonus personalizzati**: ⚙ accanto a ogni abilità o tiro salvezza: un'altra caratteristica, modificatori da sommare (es. Arcano + Saggezza), bonus fisso.
+- **Effetti di oggetti e magie**: nell'archivio, «Effetti sulla scheda» (es. CA +1, punteggio impostato a 19). Nella scheda si segna «Attivo» sull'elemento e si accende «Applica gli effetti» nel blocco «Effetti di oggetti e magie»: i valori mostrano «con gli effetti». Spento, la scheda mostra solo ciò che scrivi tu.
+- **Lancia** sulle magie collegate: sceglie lo slot (o il Patto) e lo segna come usato.
+- **Ispirazione Eroica**: pulsante grande; «Ritira l'ultimo tiro» la spende e ripete l'ultimo tiro del registro dei dadi.
+- **Slot incantesimo** (⚙ del blocco): tutti i livelli, solo quelli con slot, oppure Magia del Patto.
+
 ## Immagini
 Sono file veri in `<campagna>/images/`.
 Nelle schede e nelle note le foto grandi vengono ridotte a 1600 px; le mappe restano all'originale.
@@ -38,5 +52,5 @@ Dalla schermata delle campagne, «Pulisci immagini» elenca le immagini che ness
 `npm test` esegue i test automatici: dadi, percorsi dei dati, albero del layout, ricerca, cartelle delle note, grafo, backup e importazione, migrazione dal browser, immagini, indicatore di salvataggio (con un archivio in memoria al posto della cartella).
 
 ## Scorciatoie
-- Layout e mappe: Ctrl+Z annulla, Ctrl+Maiusc+Z (o Ctrl+Y) ripete.
+- Layout e mappe: Ctrl+Z annulla, Ctrl+Maiusc+Z (o Ctrl+Y) ripete. Fuori dalla modifica del layout, Ctrl+Z annulla i dati della scheda.
 - Mappe: Invio chiude una rotta o un confine, Esc annulla.

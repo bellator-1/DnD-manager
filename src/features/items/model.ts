@@ -6,6 +6,7 @@ export type DamageRow = { nome?: string; dado?: string; tipo?: string }
 export interface Item extends Entity {
   tipo: 'oggetto' | 'magia'
   danni: DamageRow[]
+  effetti?: { target?: string; op?: string; valore?: number; nota?: string }[] // effetti sulla scheda del personaggio (vedi characters/rules.ts)
   extra: Record<string, unknown> // campi personalizzati creati dal layout
   [field: string]: unknown
 }
@@ -13,7 +14,7 @@ export interface Item extends Entity {
 export const newItem = (tipo: Item['tipo']) => ({
   name: tipo === 'magia' ? 'Nuova magia' : 'Nuovo oggetto', tipo, categoria: '', rarita: 'Comune', sintonia: false, valore: '', peso: '', descrizione: '', note: '',
   livello: 0, scuola: 'Evocazione', tempoLancio: '', gittata: '', componenti: '', durata: '', concentrazione: false, rituale: false, classi: '', livelliSuperiori: '',
-  danni: [], collegamenti: [], immagini: [], extra: {},
+  danni: [], effetti: [], collegamenti: [], immagini: [], extra: {},
 }) as unknown as Omit<Item, keyof Entity> & { name: string }
 
 // Catalogo dei dati disponibili come campo (oggetti e magie condividono lo stesso catalogo; il layout sceglie cosa mostrare).

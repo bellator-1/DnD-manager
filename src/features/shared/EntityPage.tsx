@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import { bundleImages, download, imageNames, restoreImages, safe } from '../../core/backup'
-import { removeImage } from '../../core/images'
+import { isFromFuture, migrateEntity } from '../../core/schema'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { SidePanel } from '../../core/SidePanel'
 import { Entity, Kind } from '../../core/repo'
@@ -13,7 +13,7 @@ export interface Maker<T> { label: string; make: (items: T[]) => Omit<T, keyof E
 // Pagina archivio + scheda, uguale per personaggi, PNG, oggetti e magie: barra laterale comprimibile e scheda a layout libero.
 export function EntityPage<T extends Entity>({ kind, noun, makers, sheet, group, extra, sort }: {
   kind: Kind; noun: string; makers: Maker<T>[]
-  sheet: (e: T) => { layoutKey: string; def: KindDef }
+  sheet: (e: T) => { layoutKey: string; def: KindDef; templates?: string } // templates: famiglia di modelli di scheda (se la scheda li supporta)
   group?: (e: T) => string
   sort?: (a: T, b: T) => number
   extra?: (e: T) => ReactNode
@@ -39,7 +39,8 @@ export function EntityPage<T extends Entity>({ kind, noun, makers, sheet, group,
     try {
       const d = JSON.parse(await f.text())
       if (d?.format !== 'dnd-manage-entity' || d.kind !== kind || !d.data) throw new Error(`Questo file non contiene ${noun.toLowerCase()}.`)
-      const { id: _i, schemaVersion: _s, updatedAt: _u, ...rest } = d.data
+      if (isFromFuture(kind, d.data)) throw new Error('Il file è stato esportato da una versione più recente di D&D manage: aggiorna l\'app per importarlo.')
+      const { id: _i, schemaVersion: _s, updatedAt: _u, ...rest } = migrateEntity<any>(kind, d.data) // un file esportato da una versione precedente si aggiorna al formato attuale
       const map = await restoreImages(cid, d.images ?? {})
       if (Array.isArray(rest.immagini)) rest.immagini = rest.immagini.filter((i: any) => map[i.src]).map((i: any) => ({ ...i, src: map[i.src] }))
       if (typeof rest.ritratto === 'string') rest.ritratto = map[rest.ritratto] ?? ''
@@ -72,9 +73,9 @@ export function EntityPage<T extends Entity>({ kind, noun, makers, sheet, group,
             <div className="mb-3 flex items-center gap-2">
               {extra?.(cur)}
               <button className="btn ml-auto" title="Scarica questa scheda come file JSON" onClick={exportOne}>Esporta</button>
-              <button className="btn" onClick={async () => { if (await confirmDialog(`Eliminare «${cur.name}»?`, { danger: true })) { imageNames(cur).filter(n => !items.some(x => x.id !== cur.id && imageNames(x).includes(n))).forEach(n => removeImage(cid, n).catch(() => {})); remove(cur.id); setSel(null) } }}>Elimina</button>
+              <button className="btn" onClick={async () => { if (await confirmDialog(`Eliminare «${cur.name}»? Finisce nel cestino e si può ripristinare.`, { danger: true, ok: 'Sposta nel cestino' })) { remove(cur.id); setSel(null) } }}>Elimina</button>
             </div>
-            <SheetView layoutKey={sh.layoutKey} kind={sh.def} data={cur} onChange={update} />
+            <SheetView layoutKey={sh.layoutKey} kind={sh.def} data={cur} onChange={update} templates={sh.templates} />
           </>
         ) : <p className="opacity-60">Scegli un elemento dall'elenco o creane uno nuovo.</p>}
       </section>

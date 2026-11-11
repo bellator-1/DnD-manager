@@ -8,8 +8,9 @@ import type { BlockDef, Setter } from './SheetView'
 
 // Blocco "elenco di righe" (attacchi, danni, azioni, incantesimi, inventario…): percorso dei dati + colonne.
 // Con `link` ogni riga può essere anche un collegamento a un elemento dell'archivio: mostra il nome (apre la pagina) e un riassunto.
-export interface Col { key: string; label: string; w?: string; num?: boolean; roll?: 'attack' | 'dice' }
-export interface LinkOpt { kind: Kind; noun: string; filter?: (e: any) => boolean; qty?: boolean; summary: (e: any) => ReactNode }
+export interface Col { key: string; label: string; w?: string; num?: boolean; roll?: 'attack' | 'dice'; options?: [string, string][] } // options: la colonna è un menu a scelta
+export type RowCtx = { c: any; set: Setter; patchRow: (p: Record<string, any>) => void }
+export interface LinkOpt { kind: Kind; noun: string; filter?: (e: any) => boolean; qty?: boolean; summary: (e: any) => ReactNode; actions?: (e: any, row: Record<string, any>, ctx: RowCtx) => ReactNode } // actions: pulsanti in più accanto al nome (es. «Attivo», «Lancia»)
 const ROUTE: Record<string, string> = { items: 'oggetti', characters: 'schede', npcs: 'png', maps: 'mappe', notes: 'note' }
 const expr = (kind: 'attack' | 'dice', v: unknown) => (kind === 'attack' ? `1d20${+(v as number) >= 0 ? '+' : ''}${+(v as number) || 0}` : String(v ?? ''))
 
@@ -31,6 +32,7 @@ function RowsView({ c, set, path, cols, noun, link }: { c: any; set: Setter; pat
             <div key={i} className="rounded border border-line p-1.5">
               <div className="flex items-center gap-2">
                 {e ? <button className="font-display text-brass hover:underline" title="Apri la pagina" onClick={() => nav(`/c/${cid}/${ROUTE[link.kind]}?sel=${e.id}`)}>{e.name}</button> : <span className="opacity-60">(elemento non trovato)</span>}
+                {e && link.actions?.(e, r, { c, set, patchRow: p => patch(i, p) })}
                 {link.qty && <NumInput className="field ml-auto w-16 px-1 text-center" min={0} aria-label="Quantità" value={r.qta ?? 1} onCommit={n => patch(i, { qta: n })} />}
                 <button className={`btn px-1 py-0 ${link.qty ? '' : 'ml-auto'}`} title="Rimuovi dall'elenco" aria-label="Rimuovi dall'elenco" onClick={() => put(rows.filter((_, k) => k !== i))}>✕</button>
               </div>
@@ -42,7 +44,12 @@ function RowsView({ c, set, path, cols, noun, link }: { c: any; set: Setter; pat
           <div key={i} className="flex items-center gap-1">
             {cols.map(col => (
               <span key={col.key} className="flex min-w-0 items-center gap-0.5" style={{ flex: col.w ?? '1' }}>
-                {col.num
+                {col.options
+                  ? <select className="field min-w-0 px-1" aria-label={col.label} value={r[col.key] ?? ''} onChange={e => patch(i, { [col.key]: e.target.value })}>
+                      <option value="">{col.label}</option>
+                      {col.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  : col.num
                   ? <NumInput className="field min-w-0 px-1" placeholder={col.label} aria-label={col.label} value={r[col.key] === '' ? undefined : r[col.key]} onCommit={n => patch(i, { [col.key]: n })} />
                   : <input className="field min-w-0 px-1" type="text" placeholder={col.label} aria-label={col.label} value={r[col.key] ?? ''} onChange={e => patch(i, { [col.key]: e.target.value })} />}
                 {col.roll && <button className="btn px-1 py-0" title="Tira" onClick={() => rollEvent(expr(col.roll!, r[col.key]), r.nome)}>⚄</button>}

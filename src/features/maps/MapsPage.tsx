@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { nid } from '../../core/layouts'
 import { SidePanel, usePersisted } from '../../core/SidePanel'
 import { store } from '../../core/storage'
-import { removeImage, saveImage, useImageUrl } from '../../core/images'
+import { saveImage, useImageUrl } from '../../core/images'
 import { tracked } from '../../core/saveStatus'
 import { useEntities } from '../../core/useEntities'
 import { Layer, MapDoc, Pt, Shape, newLayers } from './model'
@@ -281,9 +281,7 @@ export function MapsPage() {
     } catch (e) { alertDialog(`Impossibile importare l'immagine: ${(e as Error).message}. Nel salvataggio del browser le immagini grandi non entrano: usa «Usa una cartella sul disco».`) }
   }
   const del = async () => {
-    if (!m || !(await confirmDialog(`Eliminare la mappa «${m.name}»?`, { danger: true }))) return
-    if (m.image) await removeImage(cid, m.image).catch(() => {})
-    await store().remove(`${cid}/maps/${m.id}.img`)
+    if (!m || !(await confirmDialog(`Eliminare la mappa «${m.name}»? Finisce nel cestino e si può ripristinare (l'immagine resta dov'è).`, { danger: true, ok: 'Sposta nel cestino' }))) return
     await remove(m.id); setSel(null)
   }
 

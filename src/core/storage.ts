@@ -40,7 +40,7 @@ class FsStore implements Store {
     try { const d = await this.dir(dir.split('/'), false); const out: string[] = []; for await (const k of (d as any).keys()) out.push(k); return out } catch { return [] }
   }
   async remove(p: string) { try { const { parts, name } = this.split(p); await (await this.dir(parts, false)).removeEntry(name) } catch { /* già assente */ } }
-  async removeDir(dir: string) { try { await this.root.removeEntry(dir, { recursive: true }) } catch { /* già assente */ } }
+  async removeDir(dir: string) { try { const { parts, name } = this.split(dir); await (await this.dir(parts, false)).removeEntry(name, { recursive: true }) } catch { /* già assente */ } }
   async listAll(dir: string) {
     const out: string[] = []
     const walk = async (h: any, base: string) => {

@@ -31,6 +31,9 @@ export const TEXTS: [string, string][] = [
 const COINS = { mr: 'Rame', ma: 'Argento', me: 'Electrum', mo: 'Oro', mp: 'Platino' }
 
 export interface Character extends Entity {
+  modello?: string // id del modello di scheda in uso (vuoto = predefinito)
+  abilitaExtra?: Record<string, { ab?: Ability; add?: Ability[]; flat?: number }> // bonus personalizzati per abilità/tiri salvezza (vedi rules.ts)
+  opzioni?: { effetti?: boolean } // applica gli effetti degli oggetti/magie attivi
   background: string; classe: string; sottoclasse: string; specie: string; livello: number; pe: number
   abilita: Record<Ability, number>
   tiriSalvezza: Record<Ability, boolean>
@@ -51,7 +54,7 @@ export const newCharacter = (name: string) => ({
   name, background: '', classe: '', sottoclasse: '', specie: '', livello: 1, pe: 0,
   abilita: { for: 10, des: 10, cos: 10, int: 10, sag: 10, car: 10 },
   tiriSalvezza: { for: false, des: false, cos: false, int: false, sag: false, car: false },
-  competenze: {}, ca: 10, velocita: 9, taglia: 'Media', ispirazione: false, esaurimento: 0,
+  competenze: {}, abilitaExtra: {}, opzioni: { effetti: false }, ca: 10, velocita: 9, taglia: 'Media', ispirazione: false, esaurimento: 0,
   pf: { max: 1, attuali: 1, temp: 0 }, dadiVita: { tipo: 'd8', totali: 1, usati: 0 }, tiriMorte: { successi: 0, fallimenti: 0 },
   incantesimi: { car: '' },
   slot: Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => [String(l), { max: 0, usati: 0 }])),

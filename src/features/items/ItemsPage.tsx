@@ -7,5 +7,5 @@ export const ItemsPage = () => (
   <EntityPage<Item> kind="items" noun="Oggetti e magie"
     makers={[{ label: 'Nuovo oggetto', make: () => newItem('oggetto') }, { label: 'Nuova magia', make: () => newItem('magia') }]}
     group={e => (e.tipo === 'magia' ? 'Magie' : 'Oggetti')}
-    sheet={e => ({ layoutKey: `item-${e.tipo}`, def: e.tipo === 'magia' ? SPELL_KIND : OBJECT_KIND })} />
+    sheet={e => ({ layoutKey: `item-${e.tipo}`, def: e.tipo === 'magia' ? SPELL_KIND : OBJECT_KIND, templates: `item-${e.tipo}` })} />
 )

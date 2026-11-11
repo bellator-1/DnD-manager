@@ -128,6 +128,7 @@ export function CampaignsPage() {
 const GROUPS: { label: string; tabs: [string, string][] }[] = [
   { label: 'Giocatore', tabs: [['schede', 'Schede'], ['note', 'Note']] },
   { label: 'Elementi di gioco', tabs: [['oggetti', 'Oggetti e magie'], ['mappe', 'Mappe'], ['manuali', 'Manuali']] },
+  { label: 'Strumenti', tabs: [['cestino', 'Cestino']] },
   { label: 'Master', tabs: [['png', 'PNG e creature'], ['relazioni', 'Relazioni'], ['master', 'Spazio del master'], ['combattimento', 'Combattimento'], ['sessioni', 'Sessioni']] },
 ]
 const TABS = GROUPS.flatMap(g => g.tabs)
