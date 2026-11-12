@@ -21,7 +21,7 @@ interface Ctx { kind: KindDef; data: any; isClosed: (id: string) => boolean; tog
 
 function Field({ cfg, data, set }: { cfg: Cfg; data: any; set: Setter }) {
   const v = getPath(data, cfg.path)
-  if (cfg.input === 'check') return <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!v} onChange={e => set(cfg.path, e.target.checked)} />{cfg.label}</label>
+  if (cfg.input === 'check') return <label className="field flex cursor-pointer items-center gap-2 text-sm hover:border-brass"><input type="checkbox" checked={!!v} onChange={e => set(cfg.path, e.target.checked)} />{cfg.label}</label>
   return (
     <label className="block text-sm"><span className="text-xs text-muted">{cfg.label}</span>
       {cfg.input === 'area' ? <textarea className="field min-h-20" rows={4} value={v ?? ''} onChange={e => set(cfg.path, e.target.value)} />
@@ -98,12 +98,12 @@ function NodeView({ n, ctx, root }: { n: Node; ctx: Ctx; root?: boolean }) {
   )
   else if (n.type === 'field') body = <Field cfg={n.cfg ?? {}} data={ctx.data} set={ctx.set} />
   else if (n.type === 'text') body = <p className="whitespace-pre-wrap text-sm">{n.cfg?.text}</p>
-  else if (def) body = <def.C c={ctx.data} set={ctx.set} cfg={{ ...def.cfg, ...n.cfg, nodeId: n.id }} patch={ctx.patch} />
+  else if (def) body = <def.C c={ctx.data} set={ctx.set} cfg={{ ...def.cfg, ...n.cfg, nodeId: n.id, editing: ctx.editing }} patch={ctx.patch} />
   else body = <p className="text-xs text-danger">Blocco sconosciuto: {n.type}</p>
 
   const label = n.type === 'group' ? n.title || '(senza titolo)' : editing ? (def?.label ?? (n.type === 'text' ? 'Testo' : 'Campo')) : ''
   return (
-    <div className={`${n.type === 'group' && !root ? 'rounded-md border border-line bg-ink/40 p-2.5' : ''} ${editing ? 'outline-dashed outline-1 outline-brass/40' : ''}`}>
+    <div className={`${n.type === 'group' && !root ? 'rounded-md border border-line bg-ink/40 p-2.5' : ''} ${n.type === 'field' && n.cfg?.input === 'check' ? 'flex flex-col justify-end' : ''} ${editing ? 'outline-dashed outline-1 outline-brass/40' : ''}`}>
       {(label || editing) && (
         <div className={`${root ? 'mb-2 border-b border-line pb-1.5' : 'mb-1'} flex items-center justify-between gap-2 ${root && editing ? 'drag cursor-move' : ''}`}>
           <h3 className={`flex min-w-0 items-center gap-2 text-brass ${root ? 'text-base' : 'text-sm'}`}>

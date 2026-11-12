@@ -15,7 +15,7 @@ export function useEffective(c: Character): Effective {
 // «Attivo»: compare solo sugli elementi che hanno effetti. È la scelta dell'utente: l'app non decide da sola cosa è indossato o in uso.
 export const itemActions = (e: any, r: Record<string, any>, { patchRow }: RowCtx): ReactNode =>
   e.effetti?.length ? (
-    <label className="flex items-center gap-1 text-xs" title="Applica gli effetti di questo elemento alla scheda (se l'opzione «Effetti» è accesa)">
+    <label className="flex min-h-7 cursor-pointer items-center gap-1.5 rounded-md border border-edge bg-raised px-2 text-xs hover:border-brass" title="Applica gli effetti di questo elemento alla scheda (se l'opzione «Effetti» è accesa)">
       <input type="checkbox" checked={!!r.on} onChange={ev => patchRow({ on: ev.target.checked })} />Attivo
     </label>
   ) : null
